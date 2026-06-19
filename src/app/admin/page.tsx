@@ -82,6 +82,30 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
   return new File([blob], filename, { type: blob.type || "image/png", lastModified: Date.now() });
 }
 
+// 画像を指定アスペクト比にセンタークロップ（Canvasで処理）
+function cropToAspect(dataUrl: string, ratio: number): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const srcRatio = img.width / img.height;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (srcRatio > ratio) {
+        sw = Math.round(img.height * ratio);
+        sx = Math.round((img.width - sw) / 2);
+      } else {
+        sh = Math.round(img.width / ratio);
+        sy = Math.round((img.height - sh) / 2);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = sw;
+      canvas.height = sh;
+      canvas.getContext("2d")!.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.src = dataUrl;
+  });
+}
+
 async function uploadImage(file: File, path: string): Promise<string> {
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, file, { contentType: file.type });
@@ -356,7 +380,11 @@ export default function AdminPage() {
       });
       const json = (await response.json()) as { imageDataUrl?: string; error?: string };
       if (!response.ok || !json.imageDataUrl) throw new Error(json.error || "AI画像を生成できませんでした。");
-      setAiResult({ kind: aiKind, dataUrl: json.imageDataUrl });
+      // 背景は9:16にクロップしてカードと比率を一致させる
+      const finalDataUrl = aiKind === "background"
+        ? await cropToAspect(json.imageDataUrl, 9 / 16)
+        : json.imageDataUrl;
+      setAiResult({ kind: aiKind, dataUrl: finalDataUrl });
       setAiEditPrompt("");
       setAiStatus("完了しました。画像を確認して採用してください。");
     } catch (err) {
@@ -710,7 +738,7 @@ export default function AdminPage() {
                   {/* 生成画像プレビュー */}
                   <div className={[
                     "mx-auto overflow-hidden rounded-xl bg-[linear-gradient(45deg,#eee_25%,transparent_25%),linear-gradient(-45deg,#eee_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#eee_75%),linear-gradient(-45deg,transparent_75%,#eee_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px]",
-                    aiResult.kind === "logo" ? "aspect-square max-w-48" : "aspect-[2/3] max-w-48",
+                    aiResult.kind === "logo" ? "aspect-square max-w-48" : "aspect-[9/16] max-w-36",
                   ].join(" ")}>
                     <img src={aiResult.dataUrl} alt="AI生成結果" className="h-full w-full object-cover" />
                   </div>
