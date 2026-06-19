@@ -1033,9 +1033,7 @@ export default function AdminPage() {
                             {/* ポップアップ */}
                             {copyPopSlug === m.cardSlug && (
                               <div className="absolute bottom-full right-0 z-20 mb-2 w-64 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
-                                <p className="mb-2 text-[10px] font-semibold text-black/50">
-                                  LINEで2つの吹き出しとして送る
-                                </p>
+
                                 {/* ① URLコピー */}
                                 <button
                                   type="button"
