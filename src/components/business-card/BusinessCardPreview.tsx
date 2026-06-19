@@ -122,7 +122,7 @@ export default function BusinessCardPreview({
     <div
       ref={mergedRef}
       className={[
-        "relative w-full overflow-hidden bg-[#141414] shadow-2xl",
+        "relative w-full overflow-hidden bg-[#141414] shadow-2xl [container-type:inline-size]",
         fill ? "h-full" : fullscreen ? "h-[100dvh]" : "aspect-[9/16]",
       ].join(" ")}
       style={{ color: card.textColor }}
@@ -196,31 +196,31 @@ export default function BusinessCardPreview({
           </div>
         ))}
 
-        {/* 名前・会社 */}
+        {/* 名前・会社 — フォントサイズはcqw基準でどのサイズでも実物と同比率 */}
         <div className="mt-auto">
-          <div className="mb-4 h-px w-10" style={{ backgroundColor: card.mainColor }} />
-          <p className="text-[10px] font-medium tracking-[0.22em] opacity-80">
+          <div className="mb-[3cqw] h-px w-[10%]" style={{ backgroundColor: card.mainColor }} />
+          <p className="[font-size:2.5cqw] font-medium tracking-[0.22em] opacity-80">
             {card.company || "COMPANY NAME"}
           </p>
-          <h1 className="mt-1.5 text-2xl font-semibold leading-tight tracking-[0.06em]">
+          <h1 className="mt-[1cqw] [font-size:6cqw] font-semibold leading-tight tracking-[0.06em]">
             {card.name || "お名前"}
           </h1>
-          <p className="mt-1.5 text-xs font-medium opacity-80">
+          <p className="mt-[1cqw] [font-size:3cqw] font-medium opacity-80">
             {card.title || "役職・肩書き"}
           </p>
           {card.department && (
-            <p className="mt-0.5 text-[10px] font-medium opacity-60">{card.department}</p>
+            <p className="mt-[0.5cqw] [font-size:2.5cqw] font-medium opacity-60">{card.department}</p>
           )}
         </div>
 
         {/* 連絡先 */}
-        <div className="mt-4 grid min-w-0 gap-2 text-[10px]">
+        <div className="mt-[3cqw] grid min-w-0 gap-[1.5cqw] [font-size:2.5cqw]">
           {contactRows.map(({ key, Icon }) => {
             const value = card[key];
             if (!value) return null;
             return (
-              <div key={key} className="flex min-w-0 items-start gap-2">
-                <Icon className="mt-0.5 h-3 w-3 shrink-0" style={{ color: card.mainColor }} />
+              <div key={key} className="flex min-w-0 items-start gap-[1.5cqw]">
+                <Icon className="mt-[0.3cqw] shrink-0 [height:3cqw] [width:3cqw]" style={{ color: card.mainColor }} />
                 <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
               </div>
             );
