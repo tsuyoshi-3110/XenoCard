@@ -821,12 +821,12 @@ export default function AdminPage() {
                 />
               </label>
 
-              {/* 画像 */}
-              <div className="flex items-end gap-3">
-                {/* ロゴ：正方形サムネイル */}
-                <label className="block w-28 shrink-0 cursor-pointer">
+              {/* 画像 — 両サムネイルを同じ高さ(h-28=112px)に揃える */}
+              <div className="flex items-start gap-3">
+                {/* ロゴ：正方形 112×112px */}
+                <label className="block shrink-0 cursor-pointer">
                   <span className="text-xs font-semibold text-black">ロゴ画像</span>
-                  <div className="mt-1 flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
+                  <div className="mt-1 flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
                     {groupLogoPreview || group.logoUrl ? (
                       <img
                         src={groupLogoPreview || group.logoUrl}
@@ -845,17 +845,20 @@ export default function AdminPage() {
                   />
                 </label>
 
-                {/* 背景：縦長サムネイル */}
-                <label className="block w-28 shrink-0 cursor-pointer">
+                {/* 背景：スマホと同比率(9:20)・同じ高さ → 幅 = 112×9/20 ≈ 50px */}
+                <label className="block shrink-0 cursor-pointer">
                   <span className="text-xs font-semibold text-black">背景画像</span>
-                  <div className="mt-1 flex aspect-[9/16] items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
+                  <div
+                    className="mt-1 overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50"
+                    style={{ height: "112px", width: "50px" }}
+                  >
                     {groupBgPreview || group.backgroundUrl ? (
                       <div
                         className="h-full w-full bg-cover bg-top"
                         style={{ backgroundImage: `url("${groupBgPreview || group.backgroundUrl}")` }}
                       />
                     ) : (
-                      <span className="text-center text-xs text-stone-400">クリックして<br/>選択</span>
+                      <span className="flex h-full items-center justify-center text-center text-[9px] text-stone-400">選択</span>
                     )}
                   </div>
                   <input
