@@ -145,18 +145,19 @@ export default function AdminPage() {
   // URL共有
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
-  const handleCopy = (slug: string) => {
+  const handleCopy = (slug: string, name: string) => {
     const url = `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || window.location.origin}/m/${slug}`;
+    const text = `${name}のデジタル名刺はこちらからご確認いただけます。\n\n${url}\n\n※ブラウザで開いてブックマークに登録しておくと便利です。`;
     const doCopy = () => {
       setCopiedSlug(slug);
       setTimeout(() => setCopiedSlug(null), 2000);
     };
     if (navigator.clipboard) {
-      void navigator.clipboard.writeText(url).then(doCopy);
+      void navigator.clipboard.writeText(text).then(doCopy);
     } else {
       // HTTP環境フォールバック（execCommand）
       const el = document.createElement("textarea");
-      el.value = url;
+      el.value = text;
       el.style.position = "fixed";
       el.style.opacity = "0";
       document.body.appendChild(el);
@@ -170,7 +171,9 @@ export default function AdminPage() {
   const handleShare = (slug: string, name: string) => {
     const url = `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || window.location.origin}/m/${slug}`;
     const subject = encodeURIComponent(`${name}の名刺`);
-    const body = encodeURIComponent(`${name}のデジタル名刺はこちらからご確認いただけます。\n\n${url}`);
+    const body = encodeURIComponent(
+      `${name}のデジタル名刺はこちらからご確認いただけます。\n\n${url}\n\n※ブラウザで開いてブックマークに登録しておくと便利です。`
+    );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
@@ -999,7 +1002,7 @@ export default function AdminPage() {
                         <>
                           <button
                             type="button"
-                            onClick={() => handleCopy(m.cardSlug)}
+                            onClick={() => handleCopy(m.cardSlug, m.displayName)}
                             className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
                           >
                             {copiedSlug === m.cardSlug ? (
