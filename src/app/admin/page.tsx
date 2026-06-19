@@ -802,8 +802,8 @@ export default function AdminPage() {
               </label>
 
               {/* 画像 */}
-              <div className="flex items-start gap-3">
-                {/* ロゴ：正方形 */}
+              <div className="flex items-end gap-3">
+                {/* ロゴ：正方形サムネイル */}
                 <label className="block w-28 shrink-0 cursor-pointer">
                   <span className="text-xs font-semibold text-black">ロゴ画像</span>
                   <div className="mt-1 flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
@@ -825,27 +825,24 @@ export default function AdminPage() {
                   />
                 </label>
 
-                {/* 背景：9:16縦長でカードと同じ比率 */}
-                <label className="block flex-1 cursor-pointer">
+                {/* 背景：ボタンのみ（プレビューで確認できるため） */}
+                <div className="flex-1">
                   <span className="text-xs font-semibold text-black">背景画像</span>
-                  <div className="mt-1 flex aspect-[9/16] items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
-                    {groupBgPreview || group.backgroundUrl ? (
-                      <img
-                        src={groupBgPreview || group.backgroundUrl}
-                        alt="background"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xs text-stone-400">クリックして選択</span>
-                    )}
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => setGroupBgFile(e.target.files?.[0] ?? null)}
-                  />
-                </label>
+                  <label className="mt-1 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-stone-300 bg-stone-50 px-4 py-3 transition hover:bg-stone-100">
+                    <span className="text-xs text-stone-500">
+                      {groupBgPreview || group.backgroundUrl ? "背景を変更" : "クリックして選択"}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setGroupBgFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {(groupBgPreview || group.backgroundUrl) && (
+                    <p className="mt-1 text-[10px] text-black/40">右のプレビューで確認できます</p>
+                  )}
+                </div>
               </div>
 
               {/* カラー */}
