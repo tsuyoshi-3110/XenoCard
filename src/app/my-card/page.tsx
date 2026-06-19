@@ -84,7 +84,7 @@ export default function MyCardPage() {
             {error || "まだ名刺が作成されていません"}
           </h1>
           <Link
-            href="/dashboard"
+            href="/admin"
             className="mt-5 inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black"
           >
             名刺を作成する

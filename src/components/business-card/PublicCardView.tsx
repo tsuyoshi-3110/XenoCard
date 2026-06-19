@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collectionGroup, getDocs, limit, query, where } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { Download, UserRoundPlus } from "lucide-react";
 import BusinessCardPreview from "@/components/business-card/BusinessCardPreview";
 import {
@@ -18,16 +18,14 @@ export default function PublicCardView({ slug }: { slug: string }) {
   useEffect(() => {
     let active = true;
 
-    void getDocs(
-      query(collectionGroup(db, "cards"), where("slug", "==", slug), limit(1)),
-    )
+    void getDoc(doc(db, "publicCards", slug))
       .then((snapshot) => {
         if (!active) return;
-        if (snapshot.empty) {
+        if (!snapshot.exists()) {
           setNotFound(true);
           return;
         }
-        setCard(snapshot.docs[0].data() as BusinessCard);
+        setCard(snapshot.data() as BusinessCard);
       })
       .catch(() => {
         if (active) setNotFound(true);

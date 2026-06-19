@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -11,6 +11,14 @@ type RequestBody = {
   prompt?: string;
   company?: string;
   mainColor?: string;
+  editImageDataUrl?: string;
+};
+
+type BuildPromptArgs = {
+  kind: ImageKind;
+  prompt: string;
+  company: string;
+  mainColor: string;
 };
 
 type FirebaseLookupResponse = {
@@ -50,12 +58,7 @@ async function verifyFirebaseToken(token: string): Promise<string | null> {
   return response.ok ? json.users?.[0]?.localId || null : null;
 }
 
-function buildPrompt({
-  kind,
-  prompt,
-  company,
-  mainColor,
-}: Required<RequestBody>): string {
+function buildPrompt({ kind, prompt, company, mainColor }: BuildPromptArgs): string {
   const brandContext = [
     company ? `Brand or company: ${company}.` : "",
     mainColor ? `Primary accent color: ${mainColor}.` : "",
@@ -134,24 +137,51 @@ export async function POST(request: NextRequest) {
     }
 
     const openai = new OpenAI({ apiKey });
-    const result = await openai.images.generate({
-      model: kind === "logo" ? "gpt-image-1.5" : "gpt-image-2",
-      prompt: buildPrompt({
-        kind,
-        prompt,
-        company: String(body.company || "").trim().slice(0, 120),
-        mainColor: String(body.mainColor || "").trim().slice(0, 20),
-      }),
-      n: 1,
-      size: kind === "logo" ? "1024x1024" : "1024x1536",
-      quality: "medium",
-      output_format: "png",
-      background: kind === "logo" ? "transparent" : "opaque",
-      moderation: "auto",
-      user: uid,
-    });
+    const size = kind === "logo" ? "1024x1024" : "1024x1536";
+    let base64: string | null | undefined;
 
-    const base64 = result.data?.[0]?.b64_json;
+    if (body.editImageDataUrl) {
+      // 既存画像を編集モード
+      const base64Data = body.editImageDataUrl.replace(/^data:image\/\w+;base64,/, "");
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      const imageFile = await toFile(imageBuffer, "image.png", { type: "image/png" });
+
+      const editResult = await openai.images.edit({
+        model: "gpt-image-1",
+        image: imageFile,
+        prompt: buildPrompt({
+          kind,
+          prompt,
+          company: String(body.company || "").trim().slice(0, 120),
+          mainColor: String(body.mainColor || "").trim().slice(0, 20),
+        }),
+        n: 1,
+        size,
+        output_format: "png",
+        user: uid,
+      });
+      base64 = editResult.data?.[0]?.b64_json;
+    } else {
+      // 新規生成モード
+      const generateResult = await openai.images.generate({
+        model: kind === "logo" ? "gpt-image-1.5" : "gpt-image-2",
+        prompt: buildPrompt({
+          kind,
+          prompt,
+          company: String(body.company || "").trim().slice(0, 120),
+          mainColor: String(body.mainColor || "").trim().slice(0, 20),
+        }),
+        n: 1,
+        size,
+        quality: "medium",
+        output_format: "png",
+        background: kind === "logo" ? "transparent" : "opaque",
+        moderation: "auto",
+        user: uid,
+      });
+      base64 = generateResult.data?.[0]?.b64_json;
+    }
+
     if (!base64) throw new Error("画像データが返されませんでした。");
 
     return NextResponse.json({
