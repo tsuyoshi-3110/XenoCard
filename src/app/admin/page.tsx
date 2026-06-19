@@ -19,7 +19,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { signOut } from "firebase/auth";
 import { Bot, Check, ChevronDown, ChevronUp, Copy, Plus, Save, Share2, Sparkles, Trash2, UserRound, WandSparkles, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { auth, createMemberAuth, db, storage } from "@/lib/firebase";
+import { auth, db, storage } from "@/lib/firebase";
 import {
   buildVCard,
   createCardSlug,
@@ -157,8 +157,6 @@ export default function AdminPage() {
 
   // 追加フォーム
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addEmail, setAddEmail] = useState("");
-  const [addPassword, setAddPassword] = useState("");
   const [addPersonal, setAddPersonal] = useState<Partial<BusinessCard>>({});
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
@@ -485,7 +483,7 @@ export default function AdminPage() {
     setAdding(true);
 
     try {
-      const newUid = await createMemberAuth(addEmail, addPassword);
+      const newUid = crypto.randomUUID();
       const slug = createCardSlug(String(addPersonal.name ?? ""));
       const cardId = `card-${Date.now()}`;
 
@@ -500,21 +498,12 @@ export default function AdminPage() {
       await setDoc(doc(db, "publicCards", slug), cardData);
       await setDoc(doc(db, "groups", groupId, "members", newUid), {
         uid: newUid,
-        email: addEmail,
-        displayName: addPersonal.name ?? "",
-        cardSlug: slug,
-      });
-      await setDoc(doc(db, "users", newUid), {
-        role: "member",
-        groupId,
-        email: addEmail,
+        email: String(addPersonal.email ?? ""),
         displayName: addPersonal.name ?? "",
         cardSlug: slug,
       });
 
       setShowAddForm(false);
-      setAddEmail("");
-      setAddPassword("");
       setAddPersonal({});
     } catch (err) {
       setAddError(errorMessage(err));
@@ -975,34 +964,7 @@ export default function AdminPage() {
 
               <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
                 <div className="grid gap-3">
-                  <p className="text-xs font-semibold text-black/40">ログイン情報</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="block">
-                      <span className="text-xs font-semibold text-black">ログイン用メールアドレス *</span>
-                      <input
-                        type="email"
-                        required
-                        value={addEmail}
-                        onChange={(e) => setAddEmail(e.target.value)}
-                        placeholder="member@example.com"
-                        className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-black outline-none focus:border-stone-500"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-semibold text-black">ログイン用パスワード *</span>
-                      <input
-                        type="password"
-                        required
-                        minLength={6}
-                        value={addPassword}
-                        onChange={(e) => setAddPassword(e.target.value)}
-                        placeholder="6文字以上"
-                        className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-black outline-none focus:border-stone-500"
-                      />
-                    </label>
-                  </div>
-
-                  <p className="mt-2 text-xs font-semibold text-black/40">個人情報</p>
+                  <p className="text-xs font-semibold text-black/40">個人情報</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {MEMBER_FIELDS.map((f) => (
                       <label key={f.name} className="block">
