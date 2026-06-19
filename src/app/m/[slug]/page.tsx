@@ -32,8 +32,8 @@ export default function MemberPage() {
     return () => { active = false; };
   }, [slug]);
 
-  const appOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? (typeof window !== "undefined" ? window.location.origin : "");
-  const pageUrl = card ? `${appOrigin}/m/${card.slug}` : (typeof window !== "undefined" ? window.location.href : "");
+  const appOrigin = (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app");
+  const pageUrl = card ? `${appOrigin}/m/${card.slug}` : `${appOrigin}/m/${slug}`;
 
   const handleCopy = () => {
     const doCopy = () => { setCopied(true); setTimeout(() => setCopied(false), 2000); };

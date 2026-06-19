@@ -144,36 +144,55 @@ export default function AdminPage() {
 
   // URL共有
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [copiedMsgSlug, setCopiedMsgSlug] = useState<string | null>(null);
 
-  const handleCopy = (slug: string, name: string) => {
-    const url = `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || window.location.origin}/m/${slug}`;
-    const text = `${name}のデジタル名刺はこちらからご確認いただけます。\n\n${url}\n\n※ブラウザで開いてブックマークに登録しておくと便利です。`;
+  const getCardUrl = (slug: string) =>
+    `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app"}/m/${slug}`;
+
+  const getCardMessage = (name: string, url: string) =>
+    `${name}のデジタル名刺はこちらからご確認いただけます。\n\n${url}\n\n※ブラウザで開いてブックマークに登録しておくと便利です。`;
+
+  const handleCopy = (slug: string) => {
+    const url = getCardUrl(slug);
     const doCopy = () => {
       setCopiedSlug(slug);
       setTimeout(() => setCopiedSlug(null), 2000);
     };
     if (navigator.clipboard) {
+      void navigator.clipboard.writeText(url).then(doCopy);
+    } else {
+      const el = document.createElement("textarea");
+      el.value = url;
+      el.style.position = "fixed"; el.style.opacity = "0";
+      document.body.appendChild(el); el.select();
+      document.execCommand("copy"); document.body.removeChild(el);
+      doCopy();
+    }
+  };
+
+  const handleCopyMessage = (slug: string, name: string) => {
+    const url = getCardUrl(slug);
+    const text = getCardMessage(name, url);
+    const doCopy = () => {
+      setCopiedMsgSlug(slug);
+      setTimeout(() => setCopiedMsgSlug(null), 2000);
+    };
+    if (navigator.clipboard) {
       void navigator.clipboard.writeText(text).then(doCopy);
     } else {
-      // HTTP環境フォールバック（execCommand）
       const el = document.createElement("textarea");
       el.value = text;
-      el.style.position = "fixed";
-      el.style.opacity = "0";
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
+      el.style.position = "fixed"; el.style.opacity = "0";
+      document.body.appendChild(el); el.select();
+      document.execCommand("copy"); document.body.removeChild(el);
       doCopy();
     }
   };
 
   const handleShare = (slug: string, name: string) => {
-    const url = `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || window.location.origin}/m/${slug}`;
+    const url = getCardUrl(slug);
     const subject = encodeURIComponent(`${name}の名刺`);
-    const body = encodeURIComponent(
-      `${name}のデジタル名刺はこちらからご確認いただけます。\n\n${url}\n\n※ブラウザで開いてブックマークに登録しておくと便利です。`
-    );
+    const body = encodeURIComponent(getCardMessage(name, url));
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
@@ -1000,9 +1019,10 @@ export default function AdminPage() {
                     <div className="flex items-center gap-2">
                       {m.cardSlug && (
                         <>
+                          {/* URLコピー */}
                           <button
                             type="button"
-                            onClick={() => handleCopy(m.cardSlug, m.displayName)}
+                            onClick={() => handleCopy(m.cardSlug)}
                             className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
                           >
                             {copiedSlug === m.cardSlug ? (
@@ -1010,8 +1030,22 @@ export default function AdminPage() {
                             ) : (
                               <Copy className="h-3 w-3" />
                             )}
-                            {copiedSlug === m.cardSlug ? "コピー済み" : "コピー"}
+                            {copiedSlug === m.cardSlug ? "コピー済み" : "URL"}
                           </button>
+                          {/* 文章コピー */}
+                          <button
+                            type="button"
+                            onClick={() => handleCopyMessage(m.cardSlug, m.displayName)}
+                            className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
+                          >
+                            {copiedMsgSlug === m.cardSlug ? (
+                              <Check className="h-3 w-3 text-green-600" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                            {copiedMsgSlug === m.cardSlug ? "コピー済み" : "文章"}
+                          </button>
+                          {/* メール送信 */}
                           <button
                             type="button"
                             onClick={() => handleShare(m.cardSlug, m.displayName)}
