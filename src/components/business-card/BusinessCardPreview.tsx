@@ -113,17 +113,22 @@ export default function BusinessCardPreview({
   const onResizePM = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d || d.type !== "resize") return;
-    const delta = (e.clientX - d.startCX + (e.clientY - d.startCY)) / 2;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // px移動量をカード幅に対する%に変換
+    const deltaPct = ((e.clientX - d.startCX + (e.clientY - d.startCY)) / 2) / rect.width * 100;
     onLogoChange?.({
       logoX: d.startX, logoY: d.startY,
-      logoSize: Math.round(Math.max(24, Math.min(220, d.startSize + delta))),
+      logoSize: Math.round(Math.max(5, Math.min(60, d.startSize + deltaPct)) * 10) / 10,
     });
   };
 
   const onPU = () => { drag.current = null; };
 
   const interactive = !!onLogoChange;
-  const logoSize = card.logoSize ?? 88;
+  // logoSize はカード幅に対する% (5–60)。旧形式(px, >60)は変換
+  const rawSize = card.logoSize ?? 20;
+  const logoSize = rawSize > 60 ? 20 : rawSize; // px時代の値はデフォルトに戻す
   const logoX = card.logoX ?? 8;
   const logoY = card.logoY ?? 8;
 
@@ -159,18 +164,18 @@ export default function BusinessCardPreview({
         {!hideLogo && (logoUrl ? (
           <div
             className={`absolute ${interactive ? "touch-none cursor-move" : ""}`}
-            style={{ top: `${logoY}%`, left: `${logoX}%`, maxWidth: "60%" }}
+            style={{ top: `${logoY}%`, left: `${logoX}%`, width: `${logoSize}%` }}
             onPointerDown={interactive ? onLogoPD : undefined}
             onPointerMove={interactive ? onLogoPM : undefined}
             onPointerUp={interactive ? onPU : undefined}
           >
-            <div className="relative" style={{ height: logoSize }}>
+            <div className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={logoUrl}
                 alt="ロゴ"
                 draggable={false}
-                style={{ height: "100%", maxWidth: "100%", objectFit: "contain", display: "block" }}
+                style={{ width: "100%", height: "auto", objectFit: "contain", display: "block" }}
               />
               {/* 選択枠 */}
               {interactive && (
@@ -193,8 +198,8 @@ export default function BusinessCardPreview({
             className={`absolute grid place-items-center rounded-2xl border border-white/20 font-semibold shadow-lg ${interactive ? "cursor-move touch-none" : ""}`}
             style={{
               top: `${logoY}%`, left: `${logoX}%`,
-              width: logoSize, height: logoSize,
-              fontSize: logoSize * 0.35,
+              width: `${logoSize}%`, aspectRatio: "1",
+              fontSize: `${logoSize * 0.35}cqw`,
               backgroundColor: `${card.mainColor}dd`,
             }}
             onPointerDown={interactive ? onLogoPD : undefined}

@@ -48,7 +48,7 @@ const EMPTY_GROUP: GroupSettings = {
   backgroundUrl: "",
   mainColor: "#c9a96e",
   textColor: "#ffffff",
-  logoSize: 88,
+  logoSize: 20, // カード幅に対する%
   logoX: 8,
   logoY: 8,
 };
@@ -204,7 +204,7 @@ export default function AdminPage() {
             backgroundUrl: gData.backgroundUrl ?? "",
             mainColor: gData.mainColor ?? "#c9a96e",
             textColor: gData.textColor ?? "#ffffff",
-            logoSize: gData.logoSize ?? 88,
+            logoSize: (gData.logoSize && gData.logoSize <= 60) ? gData.logoSize : 20, // px時代の値はリセット
             logoX: gData.logoX ?? 8,
             logoY: gData.logoY ?? 8,
           });
