@@ -16,7 +16,6 @@ export default function MemberPage() {
   const [card, setCard] = useState<BusinessCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
@@ -118,7 +117,7 @@ export default function MemberPage() {
           </button>
           <button
             type="button"
-            onClick={() => setShareOpen(true)}
+            onClick={handleNativeShare}
             className="flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-white/15 text-base font-semibold text-white/80 transition hover:bg-white/8"
           >
             <Share2 className="h-5 w-5" />
@@ -160,34 +159,7 @@ export default function MemberPage() {
         </div>
       )}
 
-      {/* 共有シート */}
-      {shareOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShareOpen(false)}
-          />
-          <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-[#1c1c1e] px-5 pb-10 pt-5">
-            <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-white/20" />
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">共有する</p>
-              <button type="button" onClick={() => setShareOpen(false)}>
-                <X className="h-5 w-5 text-white/40" />
-              </button>
-            </div>
-            <div className="grid gap-3">
-              <button
-                type="button"
-                onClick={handleNativeShare}
-                className="flex h-14 items-center gap-4 rounded-2xl bg-white/10 px-5 text-sm font-semibold text-white"
-              >
-                <Share2 className="h-6 w-6" />
-                AirDrop / その他
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </main>
   );
 }
