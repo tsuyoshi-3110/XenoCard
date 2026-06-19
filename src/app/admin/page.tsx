@@ -59,14 +59,15 @@ const MEMBER_FIELDS: Array<{
   label: string;
   placeholder: string;
   type?: string;
+  wide?: boolean;
 }> = [
   { name: "name", label: "氏名", placeholder: "山田 太郎" },
   { name: "title", label: "肩書き", placeholder: "代表取締役" },
   { name: "department", label: "追加情報（任意）", placeholder: "営業部 / 資格名 など" },
   { name: "phone", label: "電話番号", placeholder: "090-1234-5678", type: "tel" },
   { name: "email", label: "メールアドレス", placeholder: "hello@example.com", type: "email" },
-  { name: "website", label: "WebサイトURL", placeholder: "https://example.com", type: "url" },
-  { name: "address", label: "住所", placeholder: "東京都〇〇区..." },
+  { name: "website", label: "WebサイトURL（任意）", placeholder: "https://example.com", type: "url" },
+  { name: "address", label: "住所", placeholder: "東京都〇〇区...", wide: true },
 ];
 
 type Member = { uid: string; email: string; displayName: string; cardSlug: string; isAdmin?: boolean };
@@ -182,7 +183,7 @@ export default function AdminPage() {
     const url = getCardUrl(slug);
     const doCopy = () => {
       setCopiedSlug(slug);
-      setTimeout(() => setCopiedSlug(null), 2000);
+      setTimeout(() => { setCopiedSlug(null); setCopyPopSlug(null); }, 800);
     };
     if (navigator.clipboard) {
       void navigator.clipboard.writeText(url).then(doCopy);
@@ -201,7 +202,7 @@ export default function AdminPage() {
     const text = getCardMessage(name, url);
     const doCopy = () => {
       setCopiedMsgSlug(slug);
-      setTimeout(() => setCopiedMsgSlug(null), 2000);
+      setTimeout(() => { setCopiedMsgSlug(null); setCopyPopSlug(null); }, 800);
     };
     if (navigator.clipboard) {
       void navigator.clipboard.writeText(text).then(doCopy);
@@ -968,7 +969,7 @@ export default function AdminPage() {
                   <p className="text-xs font-semibold text-black/40">個人情報</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {MEMBER_FIELDS.map((f) => (
-                      <label key={f.name} className="block">
+                      <label key={f.name} className={`block${f.wide ? " sm:col-span-2" : ""}`}>
                         <span className="text-xs font-semibold text-black">{f.label}</span>
                         <input
                           type={f.type ?? "text"}
@@ -1125,7 +1126,7 @@ export default function AdminPage() {
                       <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
                         <div className="grid gap-3 sm:grid-cols-2">
                           {MEMBER_FIELDS.map((f) => (
-                            <label key={f.name} className="block">
+                            <label key={f.name} className={`block${f.wide ? " sm:col-span-2" : ""}`}>
                               <span className="text-xs font-semibold text-black">{f.label}</span>
                               <input
                                 type={f.type ?? "text"}
