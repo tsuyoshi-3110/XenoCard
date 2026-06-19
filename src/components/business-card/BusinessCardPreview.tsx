@@ -198,29 +198,29 @@ export default function BusinessCardPreview({
 
         {/* 名前・会社 — フォントサイズはcqw基準でどのサイズでも実物と同比率 */}
         <div className="mt-auto">
-          <div className="mb-[3cqw] h-px w-[10%]" style={{ backgroundColor: card.mainColor }} />
-          <p className="[font-size:2.5cqw] font-medium tracking-[0.22em] opacity-80">
+          <div className="mb-[3.6cqw] h-px w-[10%]" style={{ backgroundColor: card.mainColor }} />
+          <p className="[font-size:3cqw] font-medium tracking-[0.22em] opacity-80">
             {card.company || "COMPANY NAME"}
           </p>
-          <h1 className="mt-[1cqw] [font-size:6cqw] font-semibold leading-tight tracking-[0.06em]">
+          <h1 className="mt-[1.2cqw] [font-size:7.2cqw] font-semibold leading-tight tracking-[0.06em]">
             {card.name || "お名前"}
           </h1>
-          <p className="mt-[1cqw] [font-size:3cqw] font-medium opacity-80">
+          <p className="mt-[1.2cqw] [font-size:3.6cqw] font-medium opacity-80">
             {card.title || "役職・肩書き"}
           </p>
           {card.department && (
-            <p className="mt-[0.5cqw] [font-size:2.5cqw] font-medium opacity-60">{card.department}</p>
+            <p className="mt-[0.6cqw] [font-size:3cqw] font-medium opacity-60">{card.department}</p>
           )}
         </div>
 
         {/* 連絡先 */}
-        <div className="mt-[3cqw] grid min-w-0 gap-[1.5cqw] [font-size:2.5cqw]">
+        <div className="mt-[3.6cqw] grid min-w-0 gap-[1.8cqw] [font-size:3cqw]">
           {contactRows.map(({ key, Icon }) => {
             const value = card[key];
             if (!value) return null;
             return (
-              <div key={key} className="flex min-w-0 items-start gap-[1.5cqw]">
-                <Icon className="mt-[0.3cqw] shrink-0 [height:3cqw] [width:3cqw]" style={{ color: card.mainColor }} />
+              <div key={key} className="flex min-w-0 items-start gap-[1.8cqw]">
+                <Icon className="mt-[0.4cqw] shrink-0 [height:3.6cqw] [width:3.6cqw]" style={{ color: card.mainColor }} />
                 <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
               </div>
             );
