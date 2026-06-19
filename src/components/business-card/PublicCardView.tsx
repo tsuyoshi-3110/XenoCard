@@ -20,14 +20,31 @@ export default function PublicCardView({ slug }: { slug: string }) {
 
   useEffect(() => {
     let active = true;
+
+    const preloadImage = (url: string) =>
+      new Promise<void>((resolve) => {
+        if (!url) { resolve(); return; }
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => resolve(); // 失敗しても進む
+        img.src = url;
+      });
+
     void getDoc(doc(db, "publicCards", slug))
-      .then((snapshot) => {
+      .then(async (snapshot) => {
         if (!active) return;
         if (!snapshot.exists()) { setNotFound(true); return; }
-        setCard(snapshot.data() as BusinessCard);
+        const data = snapshot.data() as BusinessCard;
+        // 背景・ロゴを並行プリロード
+        await Promise.all([
+          preloadImage(data.backgroundUrl),
+          preloadImage(data.logoUrl),
+        ]);
+        if (active) setCard(data);
       })
       .catch(() => { if (active) setNotFound(true); })
       .finally(() => { if (active) setLoading(false); });
+
     return () => { active = false; };
   }, [slug]);
 
