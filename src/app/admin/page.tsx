@@ -148,6 +148,9 @@ export default function AdminPage() {
   const [aiStatus, setAiStatus] = useState("");
   const [aiError, setAiError] = useState("");
   const [aiEditPrompt, setAiEditPrompt] = useState("");
+  // AI生成後プレビュー（採用前でもスマホプレビューに即反映）
+  const [aiPreviewBg, setAiPreviewBg] = useState<string | null>(null);
+  const [aiPreviewLogo, setAiPreviewLogo] = useState<string | null>(null);
 
   const [members, setMembers] = useState<MemberWithCard[]>([]);
   const [initLoading, setInitLoading] = useState(true);
@@ -345,8 +348,8 @@ export default function AdminPage() {
 
   const previewGroup: GroupSettings = {
     ...group,
-    logoUrl: groupLogoPreview || group.logoUrl,
-    backgroundUrl: groupBgPreview || group.backgroundUrl,
+    logoUrl: aiPreviewLogo || groupLogoPreview || group.logoUrl,
+    backgroundUrl: aiPreviewBg || groupBgPreview || group.backgroundUrl,
   };
 
   // ── AI画像生成 ────────────────────────────────────────────────
@@ -385,8 +388,11 @@ export default function AdminPage() {
         ? await cropToAspect(json.imageDataUrl, 9 / 16)
         : json.imageDataUrl;
       setAiResult({ kind: aiKind, dataUrl: finalDataUrl });
+      // 生成直後からプレビューに反映
+      if (aiKind === "background") setAiPreviewBg(finalDataUrl);
+      else setAiPreviewLogo(finalDataUrl);
       setAiEditPrompt("");
-      setAiStatus("完了しました。画像を確認して採用してください。");
+      setAiStatus("完了しました。右のプレビューで確認して採用してください。");
     } catch (err) {
       setAiError(
         err instanceof DOMException && err.name === "AbortError"
@@ -403,11 +409,18 @@ export default function AdminPage() {
   const applyAiResult = async () => {
     if (!aiResult) return;
     const file = await dataUrlToFile(aiResult.dataUrl, `ai-${aiResult.kind}-${Date.now()}.png`);
-    if (aiResult.kind === "logo") setGroupLogoFile(file);
-    else setGroupBgFile(file);
+    if (aiResult.kind === "logo") { setGroupLogoFile(file); setAiPreviewLogo(null); }
+    else { setGroupBgFile(file); setAiPreviewBg(null); }
     setAiResult(null);
     setAiStatus("");
     setAiOpen(false);
+  };
+
+  const cancelAiPreview = () => {
+    setAiPreviewBg(null);
+    setAiPreviewLogo(null);
+    setAiResult(null);
+    setAiStatus("");
   };
 
   // ── グループ設定保存 ───────────────────────────────────────────
@@ -776,7 +789,7 @@ export default function AdminPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => void generateAiImage()}
+                      onClick={() => { cancelAiPreview(); void generateAiImage(); }}
                       className="rounded-xl border border-stone-200 px-4 py-3 text-sm font-semibold text-black hover:bg-stone-50"
                     >
                       最初から生成
