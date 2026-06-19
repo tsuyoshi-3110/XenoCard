@@ -2,12 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { Download, UserRoundPlus } from "lucide-react";
+import { UserRoundPlus } from "lucide-react";
 import BusinessCardPreview from "@/components/business-card/BusinessCardPreview";
-import {
-  buildVCard,
-  type BusinessCard,
-} from "@/lib/businessCard";
+import { type BusinessCard } from "@/lib/businessCard";
 import { db } from "@/lib/firebase";
 
 export default function PublicCardView({ slug }: { slug: string }) {
@@ -39,16 +36,6 @@ export default function PublicCardView({ slug }: { slug: string }) {
     };
   }, [slug]);
 
-  const downloadVCard = () => {
-    if (!card) return;
-    const blob = new Blob([buildVCard(card)], { type: "text/vcard;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${card.name || "contact"}.vcf`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
   if (loading) {
     return (
@@ -75,18 +62,16 @@ export default function PublicCardView({ slug }: { slug: string }) {
         <div className="overflow-hidden rounded-[30px] border border-white/10 bg-black shadow-2xl">
           <BusinessCardPreview
             card={card}
-            qrValue={buildVCard(card)}
+            qrValue={`${typeof window !== "undefined" ? window.location.origin : ""}/api/vcard/${card.slug}`}
           />
         </div>
-        <button
-          type="button"
-          onClick={downloadVCard}
+        <a
+          href={`/api/vcard/${card.slug}`}
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-black transition hover:bg-stone-100"
         >
           <UserRoundPlus className="h-5 w-5" />
           連絡先に追加
-          <Download className="h-4 w-4 opacity-50" />
-        </button>
+        </a>
         <p className="mt-3 text-center text-xs leading-relaxed text-white/45">
           ボタンを押すとvCard形式の連絡先ファイルを保存できます。
         </p>
