@@ -802,10 +802,11 @@ export default function AdminPage() {
               </label>
 
               {/* 画像 */}
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block cursor-pointer">
+              <div className="flex items-start gap-3">
+                {/* ロゴ：正方形 */}
+                <label className="block w-28 shrink-0 cursor-pointer">
                   <span className="text-xs font-semibold text-black">ロゴ画像</span>
-                  <div className="mt-1 flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
+                  <div className="mt-1 flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
                     {groupLogoPreview || group.logoUrl ? (
                       <img
                         src={groupLogoPreview || group.logoUrl}
@@ -813,7 +814,7 @@ export default function AdminPage() {
                         className="h-full w-full object-contain p-2"
                       />
                     ) : (
-                      <span className="text-xs text-stone-400">クリックして選択</span>
+                      <span className="text-center text-xs text-stone-400">クリックして<br/>選択</span>
                     )}
                   </div>
                   <input
@@ -824,9 +825,10 @@ export default function AdminPage() {
                   />
                 </label>
 
-                <label className="block cursor-pointer">
+                {/* 背景：9:16縦長でカードと同じ比率 */}
+                <label className="block flex-1 cursor-pointer">
                   <span className="text-xs font-semibold text-black">背景画像</span>
-                  <div className="mt-1 flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
+                  <div className="mt-1 flex aspect-[9/16] items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
                     {groupBgPreview || group.backgroundUrl ? (
                       <img
                         src={groupBgPreview || group.backgroundUrl}
