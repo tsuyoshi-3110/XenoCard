@@ -81,22 +81,37 @@ export default function BusinessCardPreview({
       {/* コンテンツ */}
       <div className="relative flex h-full flex-col px-[8%] pb-[7%] pt-[10%]">
 
-        {/* ロゴ */}
-        <div className="flex items-start">
-          {logoUrl ? (
-            <div className="flex max-h-24 max-w-[50%] items-center">
+        {/* ロゴ（絶対配置・位置とサイズを自由に制御） */}
+        {(() => {
+          const size = card.logoSize ?? 88;
+          const x = card.logoX ?? 8;
+          const y = card.logoY ?? 8;
+          return logoUrl ? (
+            <div
+              className="absolute"
+              style={{ top: `${y}%`, left: `${x}%`, maxWidth: "55%" }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoUrl} alt="ロゴ" className="max-h-24 max-w-full object-contain" />
+              <img
+                src={logoUrl}
+                alt="ロゴ"
+                style={{ height: size, maxWidth: "100%", objectFit: "contain", display: "block" }}
+              />
             </div>
           ) : (
             <div
-              className="grid h-[88px] w-[88px] place-items-center rounded-2xl border border-white/20 text-3xl font-semibold shadow-lg"
-              style={{ backgroundColor: `${card.mainColor}dd` }}
+              className="absolute grid place-items-center rounded-2xl border border-white/20 font-semibold shadow-lg"
+              style={{
+                top: `${y}%`, left: `${x}%`,
+                width: size, height: size,
+                fontSize: size * 0.35,
+                backgroundColor: `${card.mainColor}dd`,
+              }}
             >
               {(card.company || card.name || "C").slice(0, 1)}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* 名前・会社 */}
         <div className="mt-auto">

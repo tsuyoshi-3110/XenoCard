@@ -37,6 +37,9 @@ type GroupSettings = {
   backgroundUrl: string;
   mainColor: string;
   textColor: string;
+  logoSize: number;
+  logoX: number;
+  logoY: number;
 };
 
 const EMPTY_GROUP: GroupSettings = {
@@ -45,6 +48,9 @@ const EMPTY_GROUP: GroupSettings = {
   backgroundUrl: "",
   mainColor: "#c9a96e",
   textColor: "#ffffff",
+  logoSize: 88,
+  logoX: 8,
+  logoY: 8,
 };
 
 // メンバー個人情報のフィールド（会社・ロゴ・背景・カラーはグループ共通なので除外）
@@ -92,6 +98,9 @@ function buildMemberCard(group: GroupSettings, personal: Partial<BusinessCard>):
     backgroundUrl: group.backgroundUrl,
     mainColor: group.mainColor,
     textColor: group.textColor,
+    logoSize: group.logoSize,
+    logoX: group.logoX,
+    logoY: group.logoY,
   };
 }
 
@@ -195,6 +204,9 @@ export default function AdminPage() {
             backgroundUrl: gData.backgroundUrl ?? "",
             mainColor: gData.mainColor ?? "#c9a96e",
             textColor: gData.textColor ?? "#ffffff",
+            logoSize: gData.logoSize ?? 88,
+            logoX: gData.logoX ?? 8,
+            logoY: gData.logoY ?? 8,
           });
         }
       } else {
@@ -807,6 +819,49 @@ export default function AdminPage() {
                   </div>
                 </label>
               </div>
+
+              {/* ロゴ位置・サイズ */}
+              {(group.logoUrl || groupLogoPreview) && (
+                <div className="grid gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
+                  <p className="text-xs font-semibold text-black">ロゴの位置・サイズ</p>
+                  <label className="block">
+                    <div className="mb-1 flex justify-between">
+                      <span className="text-xs text-black/60">サイズ</span>
+                      <span className="text-xs font-semibold text-black">{group.logoSize}px</span>
+                    </div>
+                    <input
+                      type="range" min={30} max={200} step={2}
+                      value={group.logoSize}
+                      onChange={(e) => setGroup((g) => ({ ...g, logoSize: Number(e.target.value) }))}
+                      className="w-full accent-stone-900"
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="mb-1 flex justify-between">
+                      <span className="text-xs text-black/60">横位置</span>
+                      <span className="text-xs font-semibold text-black">{group.logoX}%</span>
+                    </div>
+                    <input
+                      type="range" min={0} max={75} step={1}
+                      value={group.logoX}
+                      onChange={(e) => setGroup((g) => ({ ...g, logoX: Number(e.target.value) }))}
+                      className="w-full accent-stone-900"
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="mb-1 flex justify-between">
+                      <span className="text-xs text-black/60">縦位置</span>
+                      <span className="text-xs font-semibold text-black">{group.logoY}%</span>
+                    </div>
+                    <input
+                      type="range" min={0} max={75} step={1}
+                      value={group.logoY}
+                      onChange={(e) => setGroup((g) => ({ ...g, logoY: Number(e.target.value) }))}
+                      className="w-full accent-stone-900"
+                    />
+                  </label>
+                </div>
+              )}
 
               {groupMsg && (
                 <p className={`text-xs font-semibold ${groupMsg.startsWith("保存") ? "text-green-600" : "text-red-600"}`}>

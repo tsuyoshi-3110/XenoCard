@@ -12,6 +12,9 @@ export type BusinessCard = {
   mainColor: string;
   textColor: string;
   slug: string;
+  logoSize?: number; // px (40–200)
+  logoX?: number;    // % from left (0–90)
+  logoY?: number;    // % from top  (0–80)
   createdAt?: unknown;
   updatedAt?: unknown;
 };
