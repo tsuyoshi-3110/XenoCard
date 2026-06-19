@@ -11,11 +11,12 @@ type Props = {
   logoPreviewUrl?: string;
   backgroundPreviewUrl?: string;
   previewRef?: React.Ref<HTMLDivElement>;
-  qrValue?: string; // 削除予定・互換性のため残す
+  qrValue?: string;
   fullscreen?: boolean;
   fill?: boolean;
   hideLogo?: boolean;
-  onLogoChange?: (vals: LogoVals) => void; // 渡すとロゴがドラッグ可能になる
+  onLogoChange?: (vals: LogoVals) => void;
+  textScale?: number; // テキスト全体の倍率（デフォルト1.0、プレビューには0.5など）
 };
 
 const contactRows = [
@@ -35,7 +36,9 @@ export default function BusinessCardPreview({
   fill = false,
   hideLogo = false,
   onLogoChange,
+  textScale = 1,
 }: Props) {
+  const s = (cqw: number) => `${(cqw * textScale).toFixed(2)}cqw`;
   const logoUrl = logoPreviewUrl || card.logoUrl;
   const backgroundUrl = backgroundPreviewUrl || card.backgroundUrl;
 
@@ -196,31 +199,31 @@ export default function BusinessCardPreview({
           </div>
         ))}
 
-        {/* 名前・会社 — フォントサイズはcqw基準でどのサイズでも実物と同比率 */}
+        {/* 名前・会社 */}
         <div className="mt-auto">
-          <div className="mb-[3.6cqw] h-px w-[10%]" style={{ backgroundColor: card.mainColor }} />
-          <p className="[font-size:3cqw] font-medium tracking-[0.22em] opacity-80">
+          <div className="h-px w-[10%]" style={{ marginBottom: s(3.6), backgroundColor: card.mainColor }} />
+          <p className="font-medium tracking-[0.22em] opacity-80" style={{ fontSize: s(3) }}>
             {card.company || "COMPANY NAME"}
           </p>
-          <h1 className="mt-[1.2cqw] [font-size:7.2cqw] font-semibold leading-tight tracking-[0.06em]">
+          <h1 className="font-semibold leading-tight tracking-[0.06em]" style={{ marginTop: s(1.2), fontSize: s(7.2) }}>
             {card.name || "お名前"}
           </h1>
-          <p className="mt-[1.2cqw] [font-size:3.6cqw] font-medium opacity-80">
+          <p className="font-medium opacity-80" style={{ marginTop: s(1.2), fontSize: s(3.6) }}>
             {card.title || "役職・肩書き"}
           </p>
           {card.department && (
-            <p className="mt-[0.6cqw] [font-size:3cqw] font-medium opacity-60">{card.department}</p>
+            <p className="font-medium opacity-60" style={{ marginTop: s(0.6), fontSize: s(3) }}>{card.department}</p>
           )}
         </div>
 
         {/* 連絡先 */}
-        <div className="mt-[3.6cqw] grid min-w-0 gap-[1.8cqw] [font-size:3cqw]">
+        <div className="grid min-w-0" style={{ marginTop: s(3.6), gap: s(1.8), fontSize: s(3) }}>
           {contactRows.map(({ key, Icon }) => {
             const value = card[key];
             if (!value) return null;
             return (
-              <div key={key} className="flex min-w-0 items-start gap-[1.8cqw]">
-                <Icon className="mt-[0.4cqw] shrink-0 [height:3.6cqw] [width:3.6cqw]" style={{ color: card.mainColor }} />
+              <div key={key} className="flex min-w-0 items-start" style={{ gap: s(1.8) }}>
+                <Icon className="shrink-0" style={{ marginTop: s(0.4), height: s(3.6), width: s(3.6), color: card.mainColor }} />
                 <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
               </div>
             );

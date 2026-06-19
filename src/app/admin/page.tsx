@@ -918,6 +918,7 @@ export default function AdminPage() {
                   card={{ ...EMPTY_BUSINESS_CARD, ...previewGroup, name: "山田 太郎", title: "代表取締役" }}
                   qrValue="https://xenocard.app/preview"
                   fill
+                  textScale={0.5}
                   onLogoChange={
                     (group.logoUrl || groupLogoPreview)
                       ? ({ logoX, logoY, logoSize }) =>
@@ -986,7 +987,7 @@ export default function AdminPage() {
                 {/* プレビュー */}
                 <div className="flex justify-center py-4">
                   <PhoneMockup width={200}>
-                    <BusinessCardPreview card={addPreviewCard} qrValue={buildVCard(addPreviewCard)} fill />
+                    <BusinessCardPreview card={addPreviewCard} qrValue={buildVCard(addPreviewCard)} fill textScale={0.5} />
                   </PhoneMockup>
                 </div>
               </div>
@@ -1146,6 +1147,7 @@ export default function AdminPage() {
                                 card={editPreviewCard}
                                 qrValue={buildVCard(editPreviewCard)}
                                 fill
+                                textScale={0.5}
                               />
                             </PhoneMockup>
                           </div>
