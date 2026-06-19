@@ -28,7 +28,6 @@ import {
 } from "@/lib/businessCard";
 import { compressImageToWebP } from "@/lib/imageCompression";
 import BusinessCardPreview from "@/components/business-card/BusinessCardPreview";
-import LogoPositionEditor from "@/components/business-card/LogoPositionEditor";
 import PhoneMockup from "@/components/PhoneMockup";
 
 // グループ共通設定の型
@@ -821,21 +820,11 @@ export default function AdminPage() {
                 </label>
               </div>
 
-              {/* ロゴ位置・サイズ（直感的ドラッグ編集） */}
+              {/* ロゴがある場合のヒント */}
               {(group.logoUrl || groupLogoPreview) && (
-                <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
-                  <p className="mb-2 text-xs font-semibold text-black">ロゴの位置・サイズ</p>
-                  <LogoPositionEditor
-                    card={buildMemberCard(previewGroup, { name: "山田 太郎", title: "代表取締役", phone: "", email: "", website: "", address: "", department: "", slug: "preview" })}
-                    logoPreviewUrl={groupLogoPreview ?? undefined}
-                    logoSize={group.logoSize}
-                    logoX={group.logoX}
-                    logoY={group.logoY}
-                    onChange={({ logoX, logoY, logoSize }) =>
-                      setGroup((g) => ({ ...g, logoX, logoY, logoSize }))
-                    }
-                  />
-                </div>
+                <p className="text-[11px] text-black/50">
+                  右のプレビューのロゴをドラッグして位置を変更、右下の白いハンドルでサイズ変更できます。
+                </p>
               )}
 
               {groupMsg && (
@@ -855,15 +844,26 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* プレビュー */}
-            <div className="flex items-start justify-center overflow-visible px-2 py-4">
+            {/* プレビュー（ロゴ直接ドラッグ可） */}
+            <div className="flex flex-col items-center gap-2 overflow-visible px-2 py-4">
               <PhoneMockup width={220}>
                 <BusinessCardPreview
                   card={{ ...EMPTY_BUSINESS_CARD, ...previewGroup, name: "山田 太郎", title: "代表取締役" }}
                   qrValue="https://xenocard.app/preview"
                   fill
+                  onLogoChange={
+                    (group.logoUrl || groupLogoPreview)
+                      ? ({ logoX, logoY, logoSize }) =>
+                          setGroup((g) => ({ ...g, logoX, logoY, logoSize }))
+                      : undefined
+                  }
                 />
               </PhoneMockup>
+              {(group.logoUrl || groupLogoPreview) && (
+                <p className="text-center text-[10px] text-black/35">
+                  ロゴをドラッグ → 移動　右下◻️ → リサイズ
+                </p>
+              )}
             </div>
           </div>
         </section>
