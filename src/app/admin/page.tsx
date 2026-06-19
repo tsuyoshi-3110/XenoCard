@@ -145,6 +145,7 @@ export default function AdminPage() {
   // URL共有
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [copiedMsgSlug, setCopiedMsgSlug] = useState<string | null>(null);
+  const [copyPopSlug, setCopyPopSlug] = useState<string | null>(null);
 
   const getCardUrl = (slug: string) =>
     `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app"}/m/${slug}`;
@@ -1019,32 +1020,55 @@ export default function AdminPage() {
                     <div className="flex items-center gap-2">
                       {m.cardSlug && (
                         <>
-                          {/* URLコピー */}
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(m.cardSlug)}
-                            className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
-                          >
-                            {copiedSlug === m.cardSlug ? (
-                              <Check className="h-3 w-3 text-green-600" />
-                            ) : (
+                          {/* コピーボタン → ポップアップ */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setCopyPopSlug(copyPopSlug === m.cardSlug ? null : m.cardSlug)}
+                              className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
+                            >
                               <Copy className="h-3 w-3" />
+                              コピー
+                            </button>
+                            {/* ポップアップ */}
+                            {copyPopSlug === m.cardSlug && (
+                              <div className="absolute bottom-full right-0 z-20 mb-2 w-64 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
+                                <p className="mb-2 text-[10px] font-semibold text-black/50">
+                                  LINEで2つの吹き出しとして送る
+                                </p>
+                                {/* ① URLコピー */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(m.cardSlug)}
+                                  className="flex w-full items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2.5 text-left transition hover:bg-stone-100"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] font-semibold text-black/50">① URLをコピー</p>
+                                    <p className="truncate text-xs font-medium text-black">{getCardUrl(m.cardSlug)}</p>
+                                  </div>
+                                  {copiedSlug === m.cardSlug
+                                    ? <Check className="h-4 w-4 shrink-0 text-green-600" />
+                                    : <Copy className="h-4 w-4 shrink-0 text-black/40" />}
+                                </button>
+                                {/* ② 文章コピー */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyMessage(m.cardSlug, m.displayName)}
+                                  className="mt-1.5 flex w-full items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2.5 text-left transition hover:bg-stone-100"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] font-semibold text-black/50">② 文章をコピー</p>
+                                    <p className="line-clamp-2 text-xs text-black/70">
+                                      {m.displayName}のデジタル名刺はこちらからご確認いただけます。※ブラウザで開いてブックマークに登録しておくと便利です。
+                                    </p>
+                                  </div>
+                                  {copiedMsgSlug === m.cardSlug
+                                    ? <Check className="h-4 w-4 shrink-0 text-green-600" />
+                                    : <Copy className="h-4 w-4 shrink-0 text-black/40" />}
+                                </button>
+                              </div>
                             )}
-                            {copiedSlug === m.cardSlug ? "コピー済み" : "URL"}
-                          </button>
-                          {/* 文章コピー */}
-                          <button
-                            type="button"
-                            onClick={() => handleCopyMessage(m.cardSlug, m.displayName)}
-                            className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
-                          >
-                            {copiedMsgSlug === m.cardSlug ? (
-                              <Check className="h-3 w-3 text-green-600" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                            {copiedMsgSlug === m.cardSlug ? "コピー済み" : "文章"}
-                          </button>
+                          </div>
                           {/* メール送信 */}
                           <button
                             type="button"
