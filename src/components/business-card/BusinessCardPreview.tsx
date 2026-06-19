@@ -12,7 +12,8 @@ type Props = {
   previewRef?: React.Ref<HTMLDivElement>;
   qrValue: string;
   fullscreen?: boolean;
-  fill?: boolean; // 親コンテナを100%埋める（PhoneMockup内で使用）
+  fill?: boolean;
+  hideLogo?: boolean; // ロゴを非表示（LogoPositionEditorと併用）
 };
 
 const contactRows = [
@@ -30,6 +31,7 @@ export default function BusinessCardPreview({
   qrValue,
   fullscreen = false,
   fill = false,
+  hideLogo = false,
 }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const logoUrl = logoPreviewUrl || card.logoUrl;
@@ -82,7 +84,7 @@ export default function BusinessCardPreview({
       <div className="relative flex h-full flex-col px-[8%] pb-[7%] pt-[10%]">
 
         {/* ロゴ（絶対配置・位置とサイズを自由に制御） */}
-        {(() => {
+        {!hideLogo && (() => {
           const size = card.logoSize ?? 88;
           const x = card.logoX ?? 8;
           const y = card.logoY ?? 8;
