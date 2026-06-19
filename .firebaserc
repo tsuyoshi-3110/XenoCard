@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "xenocard-ff461"
+  },
+  "targets": {
+    "xenocard-ff461": {
+      "storage": {
+        "xenocard": [
+          "xenocard-ff461.firebasestorage.app"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
