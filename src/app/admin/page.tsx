@@ -845,24 +845,26 @@ export default function AdminPage() {
                   />
                 </label>
 
-                {/* 背景：ボタンのみ（プレビューで確認できるため） */}
-                <div className="flex-1">
+                {/* 背景：縦長サムネイル */}
+                <label className="block w-28 shrink-0 cursor-pointer">
                   <span className="text-xs font-semibold text-black">背景画像</span>
-                  <label className="mt-1 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-stone-300 bg-stone-50 px-4 py-3 transition hover:bg-stone-100">
-                    <span className="text-xs text-stone-500">
-                      {groupBgPreview || group.backgroundUrl ? "背景を変更" : "クリックして選択"}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => setGroupBgFile(e.target.files?.[0] ?? null)}
-                    />
-                  </label>
-                  {(groupBgPreview || group.backgroundUrl) && (
-                    <p className="mt-1 text-[10px] text-black/40">右のプレビューで確認できます</p>
-                  )}
-                </div>
+                  <div className="mt-1 flex aspect-[9/16] items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
+                    {groupBgPreview || group.backgroundUrl ? (
+                      <div
+                        className="h-full w-full bg-cover bg-top"
+                        style={{ backgroundImage: `url("${groupBgPreview || group.backgroundUrl}")` }}
+                      />
+                    ) : (
+                      <span className="text-center text-xs text-stone-400">クリックして<br/>選択</span>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setGroupBgFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
               </div>
 
               {/* カラー */}
