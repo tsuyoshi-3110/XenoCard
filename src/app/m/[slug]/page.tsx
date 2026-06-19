@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
-import { CreditCard, LogIn, Share2, X } from "lucide-react";
+import QRCode from "qrcode";
+import { CreditCard, LogIn, QrCode, Share2, X } from "lucide-react";
 import { type BusinessCard } from "@/lib/businessCard";
 import { db } from "@/lib/firebase";
 
@@ -16,6 +17,8 @@ export default function MemberPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -33,12 +36,25 @@ export default function MemberPage() {
 
   const appOrigin = (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app");
   const pageUrl = card ? `${appOrigin}/m/${card.slug}` : `${appOrigin}/m/${slug}`;
+  const vcardUrl = `${appOrigin}/api/vcard/${slug}`;
 
   const handleNativeShare = () => {
     if (!card) return;
     if (navigator.share) {
       void navigator.share({ title: `${card.name}の名刺`, url: pageUrl });
     }
+  };
+
+  const handleQrOpen = async () => {
+    if (!qrDataUrl) {
+      const dataUrl = await QRCode.toDataURL(vcardUrl, {
+        width: 320,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+      setQrDataUrl(dataUrl);
+    }
+    setQrOpen(true);
   };
 
   if (loading) {
@@ -94,6 +110,14 @@ export default function MemberPage() {
           </a>
           <button
             type="button"
+            onClick={() => void handleQrOpen()}
+            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-white/15 text-base font-semibold text-white/80 transition hover:bg-white/8"
+          >
+            <QrCode className="h-5 w-5" />
+            QRを表示する
+          </button>
+          <button
+            type="button"
             onClick={() => setShareOpen(true)}
             className="flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-white/15 text-base font-semibold text-white/80 transition hover:bg-white/8"
           >
@@ -110,27 +134,47 @@ export default function MemberPage() {
         </div>
       </div>
 
+      {/* QRモーダル */}
+      {qrOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setQrOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-xs rounded-3xl bg-white p-8 text-center">
+            <button
+              type="button"
+              onClick={() => setQrOpen(false)}
+              className="absolute right-4 top-4 rounded-full p-1 text-black/30 hover:text-black/60"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <p className="mb-1 text-sm font-semibold text-black">{card.name}</p>
+            <p className="mb-5 text-xs text-black/40">カメラで読み取ると電話帳に追加できます</p>
+            {qrDataUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qrDataUrl} alt="QR" className="mx-auto w-48" />
+            )}
+            <p className="mt-5 text-[10px] text-black/30">連絡先 (vCard) を読み込みます</p>
+          </div>
+        </div>
+      )}
+
       {/* 共有シート */}
       {shareOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
-          {/* オーバーレイ */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShareOpen(false)}
           />
-
-          {/* ボトムシート */}
           <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-[#1c1c1e] px-5 pb-10 pt-5">
-            {/* ハンドル */}
             <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-white/20" />
-
             <div className="mb-4 flex items-center justify-between">
               <p className="text-sm font-semibold text-white">共有する</p>
               <button type="button" onClick={() => setShareOpen(false)}>
                 <X className="h-5 w-5 text-white/40" />
               </button>
             </div>
-
             <div className="grid gap-3">
               <button
                 type="button"
