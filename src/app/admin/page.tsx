@@ -383,10 +383,7 @@ export default function AdminPage() {
       });
       const json = (await response.json()) as { imageDataUrl?: string; error?: string };
       if (!response.ok || !json.imageDataUrl) throw new Error(json.error || "AI画像を生成できませんでした。");
-      // 背景は9:16にクロップしてカードと比率を一致させる
-      const finalDataUrl = aiKind === "background"
-        ? await cropToAspect(json.imageDataUrl, 9 / 16)
-        : json.imageDataUrl;
+      const finalDataUrl = json.imageDataUrl; // クロップせず原寸まま使用（bg-coverに任せる）
       setAiResult({ kind: aiKind, dataUrl: finalDataUrl });
       // 生成直後からプレビューに反映
       if (aiKind === "background") setAiPreviewBg(finalDataUrl);
@@ -748,12 +745,22 @@ export default function AdminPage() {
 
               {aiResult && (
                 <div className="mt-4 rounded-2xl border border-violet-200 bg-white p-3">
-                  {/* 生成画像プレビュー */}
+                  {/* 生成画像プレビュー — スマホと同じ比率・同じCSSで表示 */}
                   <div className={[
-                    "mx-auto overflow-hidden rounded-xl bg-[linear-gradient(45deg,#eee_25%,transparent_25%),linear-gradient(-45deg,#eee_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#eee_75%),linear-gradient(-45deg,transparent_75%,#eee_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px]",
-                    aiResult.kind === "logo" ? "aspect-square max-w-48" : "aspect-[9/16] max-w-36",
+                    "mx-auto overflow-hidden rounded-xl",
+                    aiResult.kind === "logo"
+                      ? "aspect-square max-w-48 bg-[linear-gradient(45deg,#eee_25%,transparent_25%),linear-gradient(-45deg,#eee_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#eee_75%),linear-gradient(-45deg,transparent_75%,#eee_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px]"
+                      : "aspect-[9/20] max-w-28 bg-black",
                   ].join(" ")}>
-                    <img src={aiResult.dataUrl} alt="AI生成結果" className="h-full w-full object-cover" />
+                    {aiResult.kind === "logo" ? (
+                      <img src={aiResult.dataUrl} alt="AI生成ロゴ" className="h-full w-full object-contain" />
+                    ) : (
+                      /* 背景はカードと完全に同じ描画（bg-cover bg-top）で表示 */
+                      <div
+                        className="h-full w-full bg-cover bg-top"
+                        style={{ backgroundImage: `url("${aiResult.dataUrl}")` }}
+                      />
+                    )}
                   </div>
 
                   {/* 追加編集エリア */}
