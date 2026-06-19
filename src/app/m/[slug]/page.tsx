@@ -34,19 +34,19 @@ export default function MemberPage() {
   }, [slug]);
 
   const appOrigin = (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app");
-  const pageUrl = card ? `${appOrigin}/m/${card.slug}` : `${appOrigin}/m/${slug}`;
-  const vcardUrl = `${appOrigin}/api/vcard/${slug}`;
+  // 受け取った側には名刺ページ(/v/)を直接開かせる
+  const cardViewUrl = `${appOrigin}/v/${slug}`;
 
   const handleNativeShare = () => {
     if (!card) return;
     if (navigator.share) {
-      void navigator.share({ title: `${card.name}の名刺`, url: pageUrl });
+      void navigator.share({ title: `${card.name}の名刺`, url: cardViewUrl });
     }
   };
 
   const handleQrOpen = async () => {
     if (!qrDataUrl) {
-      const dataUrl = await QRCode.toDataURL(vcardUrl, {
+      const dataUrl = await QRCode.toDataURL(cardViewUrl, {
         width: 320,
         margin: 2,
         color: { dark: "#000000", light: "#ffffff" },
@@ -149,12 +149,12 @@ export default function MemberPage() {
               <X className="h-5 w-5" />
             </button>
             <p className="mb-1 text-sm font-semibold text-black">{card.name}</p>
-            <p className="mb-5 text-xs text-black/40">カメラで読み取ると電話帳に追加できます</p>
+            <p className="mb-5 text-xs text-black/40">カメラで読み取ると名刺が開きます</p>
             {qrDataUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={qrDataUrl} alt="QR" className="mx-auto w-48" />
             )}
-            <p className="mt-5 text-[10px] text-black/30">連絡先 (vCard) を読み込みます</p>
+            <p className="mt-5 text-[10px] text-black/30">名刺ページが開きます</p>
           </div>
         </div>
       )}
