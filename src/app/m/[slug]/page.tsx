@@ -32,7 +32,8 @@ export default function MemberPage() {
     return () => { active = false; };
   }, [slug]);
 
-  const pageUrl = typeof window !== "undefined" ? window.location.href : "";
+  const appOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? (typeof window !== "undefined" ? window.location.origin : "");
+  const pageUrl = card ? `${appOrigin}/m/${card.slug}` : (typeof window !== "undefined" ? window.location.href : "");
 
   const handleCopy = () => {
     const doCopy = () => { setCopied(true); setTimeout(() => setCopied(false), 2000); };

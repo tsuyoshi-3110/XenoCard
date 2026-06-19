@@ -137,7 +137,7 @@ export default function AdminPage() {
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
   const handleCopy = (slug: string) => {
-    const url = `${window.location.origin}/m/${slug}`;
+    const url = `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || window.location.origin}/m/${slug}`;
     const doCopy = () => {
       setCopiedSlug(slug);
       setTimeout(() => setCopiedSlug(null), 2000);
@@ -159,7 +159,7 @@ export default function AdminPage() {
   };
 
   const handleShare = (slug: string, name: string) => {
-    const url = `${window.location.origin}/m/${slug}`;
+    const url = `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || window.location.origin}/m/${slug}`;
     const subject = encodeURIComponent(`${name}の名刺`);
     const body = encodeURIComponent(`${name}のデジタル名刺はこちらからご確認いただけます。\n\n${url}`);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
