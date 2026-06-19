@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
+import { useCallback, useRef } from "react";
 import { Globe2, Mail, MapPin, Phone } from "lucide-react";
 import { type BusinessCard } from "@/lib/businessCard";
 
@@ -12,7 +11,7 @@ type Props = {
   logoPreviewUrl?: string;
   backgroundPreviewUrl?: string;
   previewRef?: React.Ref<HTMLDivElement>;
-  qrValue: string;
+  qrValue?: string; // 削除予定・互換性のため残す
   fullscreen?: boolean;
   fill?: boolean;
   hideLogo?: boolean;
@@ -37,7 +36,6 @@ export default function BusinessCardPreview({
   hideLogo = false,
   onLogoChange,
 }: Props) {
-  const [qrDataUrl, setQrDataUrl] = useState("");
   const logoUrl = logoPreviewUrl || card.logoUrl;
   const backgroundUrl = backgroundPreviewUrl || card.backgroundUrl;
 
@@ -59,18 +57,6 @@ export default function BusinessCardPreview({
     startCX: number; startCY: number;
     startX: number; startY: number; startSize: number;
   } | null>(null);
-
-  useEffect(() => {
-    if (!qrValue) return;
-    let active = true;
-    void QRCode.toDataURL(qrValue, {
-      errorCorrectionLevel: "M",
-      margin: 1,
-      width: 180,
-      color: { dark: "#111111", light: "#ffffff" },
-    }).then((url) => { if (active) setQrDataUrl(url); });
-    return () => { active = false; };
-  }, [qrValue]);
 
   // --- ドラッグハンドラ（onLogoChange がある場合のみ使用） ---
   const onLogoPD = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -227,26 +213,18 @@ export default function BusinessCardPreview({
           )}
         </div>
 
-        {/* 連絡先 + QR（横並び） */}
-        <div className="mt-4 flex items-end justify-between gap-2">
-          <div className="grid min-w-0 flex-1 gap-2 text-[10px]">
-            {contactRows.map(({ key, Icon }) => {
-              const value = card[key];
-              if (!value) return null;
-              return (
-                <div key={key} className="flex min-w-0 items-start gap-2">
-                  <Icon className="mt-0.5 h-3 w-3 shrink-0" style={{ color: card.mainColor }} />
-                  <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
-                </div>
-              );
-            })}
-          </div>
-          {qrDataUrl && (
-            <div className="shrink-0 rounded-lg bg-white p-1.5 shadow-xl">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrDataUrl} alt="QR" className="h-14 w-14" />
-            </div>
-          )}
+        {/* 連絡先 */}
+        <div className="mt-4 grid min-w-0 gap-2 text-[10px]">
+          {contactRows.map(({ key, Icon }) => {
+            const value = card[key];
+            if (!value) return null;
+            return (
+              <div key={key} className="flex min-w-0 items-start gap-2">
+                <Icon className="mt-0.5 h-3 w-3 shrink-0" style={{ color: card.mainColor }} />
+                <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
+              </div>
+            );
+          })}
         </div>
 
       </div>
