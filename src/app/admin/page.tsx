@@ -398,6 +398,9 @@ export default function AdminPage() {
             backgroundUrl: updatedGroup.backgroundUrl,
             mainColor: updatedGroup.mainColor,
             textColor: updatedGroup.textColor,
+            logoSize: updatedGroup.logoSize,
+            logoX: updatedGroup.logoX,
+            logoY: updatedGroup.logoY,
             updatedAt: serverTimestamp(),
           };
           await setDoc(cardRef, patch, { merge: true });
