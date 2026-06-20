@@ -42,11 +42,25 @@ export async function POST(request: NextRequest) {
       return codeUid;
     });
 
-    const customToken = await adminAuth.createCustomToken(uid, {
-      source: "pageit-sso",
-    });
+    const [customToken, profileSnapshot] = await Promise.all([
+      adminAuth.createCustomToken(uid, {
+        source: "pageit-sso",
+      }),
+      adminDb.collection("xenocardUsers").doc(uid).get(),
+    ]);
+    const profile = profileSnapshot.exists ? profileSnapshot.data() : null;
 
-    return NextResponse.json({ customToken });
+    return NextResponse.json({
+      customToken,
+      profile: profile
+        ? {
+            enabled: profile.enabled !== false,
+            role: typeof profile.role === "string" ? profile.role : null,
+            cardSlug:
+              typeof profile.cardSlug === "string" ? profile.cardSlug : null,
+          }
+        : null,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     const status =

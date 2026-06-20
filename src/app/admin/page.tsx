@@ -30,6 +30,7 @@ import {
 import { compressImageToWebP } from "@/lib/imageCompression";
 import BusinessCardPreview from "@/components/business-card/BusinessCardPreview";
 import PhoneMockup from "@/components/PhoneMockup";
+import LoadingState from "@/components/LoadingState";
 
 // グループ共通設定の型
 type GroupSettings = {
@@ -160,6 +161,8 @@ export default function AdminPage() {
 
   const [members, setMembers] = useState<MemberWithCard[]>([]);
   const [initLoading, setInitLoading] = useState(true);
+  const [initStatus, setInitStatus] = useState("ログイン情報を確認しています…");
+  const [initSlow, setInitSlow] = useState(false);
 
   // 追加フォーム
   const [showAddForm, setShowAddForm] = useState(false);
@@ -243,10 +246,23 @@ export default function AdminPage() {
   useEffect(() => {
     if (!user) return;
     let active = true;
+    const slowTimer = window.setTimeout(() => {
+      if (active) setInitSlow(true);
+    }, 7000);
 
     const init = async () => {
       const userRef = doc(db, "xenocardUsers", user.uid);
-      const userSnap = await getDoc(userRef);
+      setInitStatus("アカウントとグループ情報を読み込んでいます…");
+      const [userSnap, groupsSnap] = await Promise.all([
+        getDoc(userRef),
+        getDocs(
+          query(
+            collection(db, "xenocardGroups"),
+            where("adminUid", "==", user.uid),
+            limit(1),
+          ),
+        ),
+      ]);
       const userProfile = userSnap.exists() ? userSnap.data() : null;
 
       if (userProfile && userProfile.role !== "admin") {
@@ -260,9 +276,6 @@ export default function AdminPage() {
 
       let gId = "";
 
-      const groupsSnap = await getDocs(
-        query(collection(db, "xenocardGroups"), where("adminUid", "==", user.uid), limit(1)),
-      );
       const myGroup = groupsSnap.docs[0];
 
       if (myGroup) {
@@ -290,18 +303,25 @@ export default function AdminPage() {
         });
       }
 
-      await setDoc(
-        userRef,
-        { role: "admin", groupId: gId, email: user.email ?? "", enabled: true },
-        { merge: true },
-      );
-
       if (!active) return;
       setGroupId(gId);
+      setInitStatus("メンバー情報を準備しています…");
 
       // 管理者自身がメンバー一覧に存在しない場合は追加する
       const adminMemberRef = doc(db, "xenocardGroups", gId, "members", user.uid);
-      const adminMemberSnap = await getDoc(adminMemberRef);
+      const [, adminMemberSnap] = await Promise.all([
+        setDoc(
+          userRef,
+          {
+            role: "admin",
+            groupId: gId,
+            email: user.email ?? "",
+            enabled: true,
+          },
+          { merge: true },
+        ),
+        getDoc(adminMemberRef),
+      ]);
       if (!adminMemberSnap.exists()) {
         // ダッシュボードの既存カードがあれば取得してマイグレーション
         const existingCardsSnap = await getDocs(
@@ -321,32 +341,64 @@ export default function AdminPage() {
           updatedAt: serverTimestamp(),
         };
 
-        await setDoc(doc(db, "xenocardGroups", gId, "members", user.uid, "cards", cardId), cardData);
-        await setDoc(doc(db, "xenocardPublicCards", slug), cardData);
-        await setDoc(adminMemberRef, {
-          uid: user.uid,
-          email: user.email ?? "",
-          displayName: existingCard?.name ?? user.email ?? "",
-          cardSlug: slug,
-          isAdmin: true,
-        });
-        await setDoc(userRef, { cardSlug: slug }, { merge: true });
+        await Promise.all([
+          setDoc(
+            doc(
+              db,
+              "xenocardGroups",
+              gId,
+              "members",
+              user.uid,
+              "cards",
+              cardId,
+            ),
+            cardData,
+          ),
+          setDoc(doc(db, "xenocardPublicCards", slug), cardData),
+          setDoc(adminMemberRef, {
+            uid: user.uid,
+            email: user.email ?? "",
+            displayName: existingCard?.name ?? user.email ?? "",
+            cardSlug: slug,
+            isAdmin: true,
+          }),
+          setDoc(userRef, { cardSlug: slug }, { merge: true }),
+        ]);
       }
 
-      const unsub = onSnapshot(collection(db, "xenocardGroups", gId, "members"), async (snap) => {
+      const unsub = onSnapshot(collection(db, "xenocardGroups", gId, "members"), (snap) => {
+        const memberList = snap.docs.map((memberDoc) => ({
+          ...(memberDoc.data() as Member),
+          card: null,
+        }));
+        if (active) {
+          setMembers(memberList);
+          setInitLoading(false);
+          setInitStatus("名刺データを読み込んでいます…");
+          window.clearTimeout(slowTimer);
+        }
+
+        void (async () => {
         const list: MemberWithCard[] = await Promise.all(
-          snap.docs.map(async (d) => {
-            const m = d.data() as Member;
+          memberList.map(async (member) => {
             const cardsSnap = await getDocs(
-              collection(db, "xenocardGroups", gId, "members", m.uid, "cards"),
+              collection(
+                db,
+                "xenocardGroups",
+                gId,
+                "members",
+                member.uid,
+                "cards",
+              ),
             );
             const card = cardsSnap.empty
               ? null
               : ({ ...EMPTY_BUSINESS_CARD, ...cardsSnap.docs[0].data() } as BusinessCard);
-            return { ...m, card };
+            return { ...member, card };
           }),
         );
-        if (active) { setMembers(list); setInitLoading(false); }
+          if (active) setMembers(list);
+        })();
       });
       return unsub;
     };
@@ -354,9 +406,18 @@ export default function AdminPage() {
     let unsubFn: (() => void) | undefined;
     init()
       .then((u) => { unsubFn = u; })
-      .catch(() => { if (active) setInitLoading(false); });
+      .catch(() => {
+        if (active) {
+          setInitLoading(false);
+          window.clearTimeout(slowTimer);
+        }
+      });
 
-    return () => { active = false; unsubFn?.(); };
+    return () => {
+      active = false;
+      window.clearTimeout(slowTimer);
+      unsubFn?.();
+    };
   }, [router, user]);
 
   // プレビュー用: グループ設定 + 個人情報をリアルタイムマージ
@@ -668,9 +729,11 @@ export default function AdminPage() {
   // ── レンダリング ─────────────────────────────────────────────
   if (loading || initLoading) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f4f1eb] text-sm text-black">
-        読み込み中...
-      </main>
+      <LoadingState
+        title="管理画面を準備中"
+        message={loading ? "ログイン情報を確認しています…" : initStatus}
+        slow={initSlow}
+      />
     );
   }
   if (!user) return null;
