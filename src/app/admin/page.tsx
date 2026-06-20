@@ -1249,7 +1249,32 @@ export default function AdminPage() {
                             </button>
                             {/* ポップアップ */}
                             {copyPopSlug === m.cardSlug && (
-                              <div className="absolute bottom-full right-0 z-20 mb-2 w-64 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
+                              <>
+                                <button
+                                  type="button"
+                                  aria-label="コピーメニューを閉じる"
+                                  onClick={() => setCopyPopSlug(null)}
+                                  className="fixed inset-0 z-40 bg-black/30 sm:hidden"
+                                />
+                                <div
+                                  role="dialog"
+                                  aria-modal="true"
+                                  aria-label="名刺をコピー"
+                                  className="fixed inset-x-3 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-full sm:right-0 sm:z-20 sm:mb-2 sm:w-64 sm:max-h-none sm:overflow-visible sm:shadow-xl"
+                                >
+                                  <div className="mb-2 flex items-center justify-between px-1 sm:hidden">
+                                    <p className="text-xs font-semibold text-black">
+                                      名刺をコピー
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => setCopyPopSlug(null)}
+                                      className="grid h-8 w-8 place-items-center rounded-full bg-stone-100 text-black"
+                                      aria-label="閉じる"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
 
                                 {/* ① URLコピー */}
                                 <button
@@ -1281,7 +1306,8 @@ export default function AdminPage() {
                                     ? <Check className="h-4 w-4 shrink-0 text-green-600" />
                                     : <Copy className="h-4 w-4 shrink-0 text-black/40" />}
                                 </button>
-                              </div>
+                                </div>
+                              </>
                             )}
                           </div>
                           {/* メール送信 */}
