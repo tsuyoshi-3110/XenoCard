@@ -632,7 +632,7 @@ export default function AdminPage() {
         </div>
 
         {/* ── グループ共通設定 ── */}
-        <section className="rounded-2xl border border-black/8 bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-black/8 bg-white p-4 sm:p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-base font-semibold text-black">グループ共通設定</h2>
@@ -913,7 +913,7 @@ export default function AdminPage() {
             </div>
 
             {/* プレビュー（ロゴ直接ドラッグ可） */}
-            <div className="flex flex-col items-center gap-2 overflow-visible px-2 py-4">
+            <div className="hidden lg:flex flex-col items-center gap-2 overflow-visible px-2 py-4">
               <PhoneMockup width={220}>
                 <BusinessCardPreview
                   card={{ ...EMPTY_BUSINESS_CARD, ...previewGroup, name: "山田 太郎", title: "代表取締役" }}
@@ -938,7 +938,7 @@ export default function AdminPage() {
         </section>
 
         {/* ── メンバー一覧 ── */}
-        <section className="rounded-2xl border border-black/8 bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-black/8 bg-white p-4 sm:p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-black">メンバー一覧</h2>
             <button
@@ -986,7 +986,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* プレビュー */}
-                <div className="flex justify-center py-4">
+                <div className="hidden lg:flex justify-center py-4">
                   <PhoneMockup width={200}>
                     <BusinessCardPreview card={addPreviewCard} qrValue={buildVCard(addPreviewCard)} fill textScale={1.0} />
                   </PhoneMockup>
@@ -1017,20 +1017,20 @@ export default function AdminPage() {
               members.map((m) => (
                 <div key={m.uid} className="rounded-xl border border-stone-100 bg-stone-50">
                   <div className="flex items-center justify-between px-4 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-9 w-9 place-items-center rounded-full bg-stone-200">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-200">
                         <UserRound className="h-4 w-4 text-black" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-black">{m.displayName || m.email}</p>
+                          <p className="truncate text-sm font-semibold text-black">{m.displayName || m.email}</p>
                           {m.isAdmin && (
-                            <span className="rounded-full bg-stone-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                            <span className="shrink-0 rounded-full bg-stone-900 px-2 py-0.5 text-[10px] font-semibold text-white">
                               管理者
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-black/50">{m.email}</p>
+                        <p className="truncate text-xs text-black/50">{m.email}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1044,7 +1044,7 @@ export default function AdminPage() {
                               className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
                             >
                               <Copy className="h-3 w-3" />
-                              コピー
+                              <span className="hidden sm:inline">コピー</span>
                             </button>
                             {/* ポップアップ */}
                             {copyPopSlug === m.cardSlug && (
@@ -1090,7 +1090,7 @@ export default function AdminPage() {
                             className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
                           >
                             <Share2 className="h-3 w-3" />
-                            送る
+                            <span className="hidden sm:inline">送る</span>
                           </button>
                         </>
                       )}
@@ -1101,7 +1101,7 @@ export default function AdminPage() {
                         }
                         className="flex items-center gap-1 rounded-full bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black"
                       >
-                        編集
+                        <span className="hidden sm:inline">編集</span>
                         {editingUid === m.uid ? (
                           <ChevronUp className="h-3 w-3" />
                         ) : (
@@ -1139,9 +1139,25 @@ export default function AdminPage() {
                               />
                             </label>
                           ))}
+                          {/* 保存ボタン（モバイルのみ表示） */}
+                          <div className="sm:col-span-2 lg:hidden">
+                            {saveMsg && (
+                              <p className={`mb-2 text-xs font-semibold ${saveMsg === "保存しました" ? "text-green-600" : "text-red-600"}`}>
+                                {saveMsg}
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => void handleSaveCard()}
+                              disabled={saving}
+                              className="w-full rounded-xl bg-stone-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50"
+                            >
+                              {saving ? "保存中..." : "保存"}
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="flex flex-col items-center gap-3">
+                        <div className="hidden lg:flex flex-col items-center gap-3">
                           <div className="py-4">
                             <PhoneMockup width={190}>
                               <BusinessCardPreview
