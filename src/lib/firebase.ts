@@ -1,5 +1,5 @@
-import { deleteApp, getApp, getApps, initializeApp } from "firebase/app";
-import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
+import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -27,14 +27,3 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-
-export async function createMemberAuth(email: string, password: string): Promise<string> {
-  const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
-  const secondaryAuth = getAuth(secondaryApp);
-  try {
-    const { user } = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-    return user.uid;
-  } finally {
-    await deleteApp(secondaryApp);
-  }
-}

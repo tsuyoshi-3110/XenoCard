@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import BusinessCardPreview from "@/components/business-card/BusinessCardPreview";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -38,22 +38,23 @@ export default function MyCardPage() {
     if (!user) return;
     let active = true;
 
-    void getDocs(
-      query(
-        collection(db, "users", user.uid, "cards"),
-        orderBy("updatedAt", "desc"),
-        limit(1),
-      ),
-    )
-      .then((snapshot) => {
+    void getDoc(doc(db, "xenocardUsers", user.uid))
+      .then(async (snapshot) => {
         if (!active) return;
-        if (snapshot.empty) {
+        const cardSlug = snapshot.data()?.cardSlug;
+        if (!snapshot.exists() || typeof cardSlug !== "string" || !cardSlug) {
+          setCard(null);
+          return;
+        }
+        const cardSnapshot = await getDoc(doc(db, "xenocardPublicCards", cardSlug));
+        if (!active) return;
+        if (!cardSnapshot.exists()) {
           setCard(null);
           return;
         }
         setCard({
           ...EMPTY_BUSINESS_CARD,
-          ...(snapshot.docs[0].data() as BusinessCard),
+          ...(cardSnapshot.data() as BusinessCard),
         });
       })
       .catch(() => {
@@ -104,4 +105,3 @@ export default function MyCardPage() {
     </main>
   );
 }
-

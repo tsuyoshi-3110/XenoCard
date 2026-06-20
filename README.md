@@ -22,12 +22,15 @@ npm run dev
 
 ## Firebase設定
 
-1. Firebase Consoleでプロジェクトを作成
-2. Authenticationの「メール/パスワード」を有効化
-3. Firestore Databaseを作成
-4. Storageを作成
-5. Webアプリを登録し、設定値を `.env.local` に記載
-6. `firestore.rules` と `storage.rules` をFirebaseへ反映
+XenoCard専用Firebaseプロジェクトは使用せず、Pageitと同じFirebaseプロジェクトを利用します。
+
+1. Pageit FirebaseのWebアプリ設定値を `.env.local` に記載
+2. Pageit FirebaseのサービスアカウントJSONを設定
+3. XenoCardのドメインをFirebase Authenticationの承認済みドメインへ追加
+4. `firestore.rules` と `storage.rules` のXenoCard部分をPageit側の既存Rulesへ統合
+
+`firestore.rules` と `storage.rules` をXenoCardリポジトリから単体デプロイしないでください。
+Pageitの既存Rulesが上書きされます。
 
 ## 必要な環境変数
 
@@ -42,9 +45,11 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 OPENAI_API_KEY=
+FIREBASE_SERVICE_ACCOUNT_KEY=
 ```
 
-既存機能でFirebase Admin SDKやStripe等を利用する場合は、それぞれの既存環境変数も設定してください。
+すべてPageit Firebaseプロジェクトの値を設定します。
+`FIREBASE_SERVICE_ACCOUNT_KEY`にはPageitのサービスアカウントJSON全文を1行で設定します。
 
 `OPENAI_API_KEY` はサーバー専用です。`NEXT_PUBLIC_` を付けないでください。
 
@@ -59,59 +64,27 @@ OPENAI_API_KEY=
 
 OpenAI Platform側でAPI課金設定が必要です。GPT Imageモデルの利用時に組織確認を求められる場合があります。
 
-## Firestoreデータ構造
+## Firebaseデータ構造
 
 ```text
-users/{uid}/cards/{cardId}
-  name
-  company
-  title
-  phone
-  email
-  website
-  address
-  logoUrl
-  backgroundUrl
-  mainColor
-  textColor
-  slug
-  createdAt
-  updatedAt
+xenocardUsers/{uid}
+xenocardGroups/{groupId}
+xenocardGroups/{groupId}/members/{uid}
+xenocardGroups/{groupId}/members/{uid}/cards/{cardId}
+xenocardPublicCards/{slug}
+
+Storage:
+xenocard/groups/{groupId}/{fileName}
 ```
 
-## Firestoreルール案
+Pageitの`users`など既存コレクションとの衝突を避けるため、すべてXenoCard専用名に分離しています。
 
-公開ページが `collectionGroup("cards")` と `slug` で検索でき、書き込みは所有者だけに限定します。
+## Pageitアカウントとの関係
 
-```text
-match /{path=**}/cards/{cardId} {
-  allow read: if true;
-}
-
-match /users/{uid}/cards/{cardId} {
-  allow read: if true;
-  allow create, update, delete: if request.auth != null
-    && request.auth.uid == uid;
-}
-```
-
-実際のルールファイルは `firestore.rules` に用意しています。
-
-## Storageルール案
-
-```text
-match /users/{uid}/cards/{cardId}/{fileName} {
-  allow read: if true;
-  allow create, update, delete: if request.auth != null
-    && request.auth.uid == uid
-    && (request.resource == null || (
-      request.resource.contentType.matches('image/.*')
-      && request.resource.size < 10 * 1024 * 1024
-    ));
-}
-```
-
-実際のルールファイルは `storage.rules` に用意しています。
+- XenoCardはPageit Firebase Authenticationのアカウントでログインします。
+- メンバー追加時は、入力したメールアドレスに対応するPageitアカウントを検索してUIDを紐付けます。
+- Pageitにアカウントが存在しない場合、XenoCardからメンバー追加できません。
+- XenoCardでメンバーを削除しても、Pageit Firebase Authenticationのアカウント自体は削除しません。
 
 ## 画像最適化
 

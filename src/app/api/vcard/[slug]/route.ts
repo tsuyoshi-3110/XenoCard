@@ -63,7 +63,7 @@ export async function GET(
 
   try {
     const db = getFirestore();
-    const snap = await db.collection("publicCards").doc(slug).get();
+    const snap = await db.collection("xenocardPublicCards").doc(slug).get();
 
     if (!snap.exists) {
       return new NextResponse("Not found", { status: 404 });

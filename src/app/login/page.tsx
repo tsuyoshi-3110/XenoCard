@@ -3,12 +3,11 @@
 import {
   FormEvent,
   Suspense,
-  useEffect,
   useMemo,
   useState,
 } from "react";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CreditCard, LogOut } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -66,8 +65,14 @@ function LoginForm() {
       );
 
       // ロールを確認してリダイレクト先を決定
-      const profileSnap = await getDoc(doc(db, "users", loggedInUser.uid));
+      const profileSnap = await getDoc(doc(db, "xenocardUsers", loggedInUser.uid));
       const profile = profileSnap.exists() ? profileSnap.data() : null;
+
+      if (profile?.enabled === false) {
+        await signOut(auth);
+        setError("このアカウントはXenoCardを利用できません。");
+        return;
+      }
 
       if (profile?.role === "member" && profile?.cardSlug) {
         router.replace(`/m/${profile.cardSlug}`);

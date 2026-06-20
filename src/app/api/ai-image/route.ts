@@ -1,5 +1,6 @@
 import OpenAI, { toFile } from "openai";
 import { NextRequest, NextResponse } from "next/server";
+import { adminAuth } from "@/lib/firebase-admin";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -21,11 +22,6 @@ type BuildPromptArgs = {
   mainColor: string;
 };
 
-type FirebaseLookupResponse = {
-  users?: Array<{ localId?: string }>;
-  error?: { message?: string };
-};
-
 const generationHistory = new Map<string, number[]>();
 const MAX_GENERATIONS_PER_HOUR = 10;
 
@@ -42,20 +38,12 @@ function checkRateLimit(uid: string): boolean {
 }
 
 async function verifyFirebaseToken(token: string): Promise<string | null> {
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-  if (!apiKey) throw new Error("Firebase APIキーが設定されていません。");
-
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken: token }),
-      cache: "no-store",
-    },
-  );
-  const json = (await response.json()) as FirebaseLookupResponse;
-  return response.ok ? json.users?.[0]?.localId || null : null;
+  try {
+    const decoded = await adminAuth.verifyIdToken(token);
+    return decoded.uid;
+  } catch {
+    return null;
+  }
 }
 
 function buildPrompt({ kind, prompt, company, mainColor }: BuildPromptArgs): string {
@@ -203,4 +191,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

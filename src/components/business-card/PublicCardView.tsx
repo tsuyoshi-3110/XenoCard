@@ -30,7 +30,7 @@ export default function PublicCardView({ slug }: { slug: string }) {
         img.src = url;
       });
 
-    void getDoc(doc(db, "publicCards", slug))
+    void getDoc(doc(db, "xenocardPublicCards", slug))
       .then(async (snapshot) => {
         if (!active) return;
         if (!snapshot.exists()) { setNotFound(true); return; }

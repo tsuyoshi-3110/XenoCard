@@ -22,7 +22,7 @@ export default function MemberPage() {
   useEffect(() => {
     if (!slug) return;
     let active = true;
-    void getDoc(doc(db, "publicCards", slug))
+    void getDoc(doc(db, "xenocardPublicCards", slug))
       .then((snapshot) => {
         if (!active) return;
         if (!snapshot.exists()) setNotFound(true);

@@ -245,11 +245,23 @@ export default function AdminPage() {
     let active = true;
 
     const init = async () => {
-      const userRef = doc(db, "users", user.uid);
+      const userRef = doc(db, "xenocardUsers", user.uid);
+      const userSnap = await getDoc(userRef);
+      const userProfile = userSnap.exists() ? userSnap.data() : null;
+
+      if (userProfile && userProfile.role !== "admin") {
+        const memberPath =
+          typeof userProfile.cardSlug === "string" && userProfile.cardSlug
+            ? `/m/${userProfile.cardSlug}`
+            : "/my-card";
+        router.replace(memberPath);
+        return;
+      }
+
       let gId = "";
 
       const groupsSnap = await getDocs(
-        query(collection(db, "groups"), where("adminUid", "==", user.uid), limit(1)),
+        query(collection(db, "xenocardGroups"), where("adminUid", "==", user.uid), limit(1)),
       );
       const myGroup = groupsSnap.docs[0];
 
@@ -271,24 +283,29 @@ export default function AdminPage() {
         }
       } else {
         gId = `group-${user.uid}`;
-        await setDoc(doc(db, "groups", gId), {
+        await setDoc(doc(db, "xenocardGroups", gId), {
           name: "メイングループ",
           adminUid: user.uid,
           createdAt: serverTimestamp(),
         });
-        await setDoc(userRef, { role: "admin", groupId: gId, email: user.email ?? "" });
       }
+
+      await setDoc(
+        userRef,
+        { role: "admin", groupId: gId, email: user.email ?? "", enabled: true },
+        { merge: true },
+      );
 
       if (!active) return;
       setGroupId(gId);
 
       // 管理者自身がメンバー一覧に存在しない場合は追加する
-      const adminMemberRef = doc(db, "groups", gId, "members", user.uid);
+      const adminMemberRef = doc(db, "xenocardGroups", gId, "members", user.uid);
       const adminMemberSnap = await getDoc(adminMemberRef);
       if (!adminMemberSnap.exists()) {
         // ダッシュボードの既存カードがあれば取得してマイグレーション
         const existingCardsSnap = await getDocs(
-          query(collection(db, "users", user.uid, "cards"), limit(1)),
+          query(collection(db, "xenocardUsers", user.uid, "cards"), limit(1)),
         );
         const existingCard = existingCardsSnap.empty
           ? null
@@ -299,12 +316,13 @@ export default function AdminPage() {
         const cardData = {
           ...EMPTY_BUSINESS_CARD,
           ...(existingCard ?? {}),
+          groupId: gId,
           slug,
           updatedAt: serverTimestamp(),
         };
 
-        await setDoc(doc(db, "groups", gId, "members", user.uid, "cards", cardId), cardData);
-        await setDoc(doc(db, "publicCards", slug), cardData);
+        await setDoc(doc(db, "xenocardGroups", gId, "members", user.uid, "cards", cardId), cardData);
+        await setDoc(doc(db, "xenocardPublicCards", slug), cardData);
         await setDoc(adminMemberRef, {
           uid: user.uid,
           email: user.email ?? "",
@@ -312,14 +330,15 @@ export default function AdminPage() {
           cardSlug: slug,
           isAdmin: true,
         });
+        await setDoc(userRef, { cardSlug: slug }, { merge: true });
       }
 
-      const unsub = onSnapshot(collection(db, "groups", gId, "members"), async (snap) => {
+      const unsub = onSnapshot(collection(db, "xenocardGroups", gId, "members"), async (snap) => {
         const list: MemberWithCard[] = await Promise.all(
           snap.docs.map(async (d) => {
             const m = d.data() as Member;
             const cardsSnap = await getDocs(
-              collection(db, "groups", gId, "members", m.uid, "cards"),
+              collection(db, "xenocardGroups", gId, "members", m.uid, "cards"),
             );
             const card = cardsSnap.empty
               ? null
@@ -338,7 +357,7 @@ export default function AdminPage() {
       .catch(() => { if (active) setInitLoading(false); });
 
     return () => { active = false; unsubFn?.(); };
-  }, [user]);
+  }, [router, user]);
 
   // プレビュー用: グループ設定 + 個人情報をリアルタイムマージ
   const groupLogoPreview = useMemo(
@@ -440,16 +459,16 @@ export default function AdminPage() {
       const [logoUrl, backgroundUrl] = await Promise.all([
         groupLogoFile
           ? compressImageToWebP(groupLogoFile, { maxBytes: 300 * 1024, maxWidth: 1200, maxHeight: 1200 })
-              .then((f) => uploadImage(f, `groups/${groupId}/logo-${Date.now()}.webp`))
+              .then((f) => uploadImage(f, `xenocard/groups/${groupId}/logo-${Date.now()}.webp`))
           : Promise.resolve(group.logoUrl),
         groupBgFile
           ? compressImageToWebP(groupBgFile, { maxBytes: 500 * 1024, maxWidth: 1440, maxHeight: 2560 })
-              .then((f) => uploadImage(f, `groups/${groupId}/background-${Date.now()}.webp`))
+              .then((f) => uploadImage(f, `xenocard/groups/${groupId}/background-${Date.now()}.webp`))
           : Promise.resolve(group.backgroundUrl),
       ]);
 
       const updatedGroup = { ...group, logoUrl, backgroundUrl };
-      await setDoc(doc(db, "groups", groupId), updatedGroup, { merge: true });
+      await setDoc(doc(db, "xenocardGroups", groupId), updatedGroup, { merge: true });
       setGroup(updatedGroup);
       setGroupLogoFile(null);
       setGroupBgFile(null);
@@ -459,7 +478,7 @@ export default function AdminPage() {
         members.map(async (m) => {
           if (!m.card || !m.cardSlug) return;
           const cardsSnap = await getDocs(
-            collection(db, "groups", groupId, "members", m.uid, "cards"),
+            collection(db, "xenocardGroups", groupId, "members", m.uid, "cards"),
           );
           if (cardsSnap.empty) return;
           const cardRef = cardsSnap.docs[0].ref;
@@ -475,7 +494,7 @@ export default function AdminPage() {
             updatedAt: serverTimestamp(),
           };
           await setDoc(cardRef, patch, { merge: true });
-          await setDoc(doc(db, "publicCards", m.cardSlug), patch, { merge: true });
+          await setDoc(doc(db, "xenocardPublicCards", m.cardSlug), patch, { merge: true });
         }),
       );
 
@@ -495,25 +514,60 @@ export default function AdminPage() {
     setAdding(true);
 
     try {
-      const newUid = crypto.randomUUID();
+      const email = String(addPersonal.email ?? "").trim().toLowerCase();
+      if (!email) throw new Error("Pageitアカウントのメールアドレスを入力してください。");
+
+      const token = await user?.getIdToken();
+      if (!token) throw new Error("ログイン情報を確認できませんでした。");
+
+      const memberResponse = await fetch("/api/resolve-member", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email }),
+      });
+      const memberJson = (await memberResponse.json()) as {
+        uid?: string;
+        email?: string;
+        error?: string;
+      };
+      if (!memberResponse.ok || !memberJson.uid) {
+        throw new Error(memberJson.error || "Pageitアカウントを確認できませんでした。");
+      }
+
+      const newUid = memberJson.uid;
       const slug = createCardSlug(String(addPersonal.name ?? ""));
       const cardId = `card-${Date.now()}`;
 
       const cardData = {
         ...buildMemberCard(group, addPersonal),
+        groupId,
         slug,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      await setDoc(doc(db, "groups", groupId, "members", newUid, "cards", cardId), cardData);
-      await setDoc(doc(db, "publicCards", slug), cardData);
-      await setDoc(doc(db, "groups", groupId, "members", newUid), {
+      await setDoc(doc(db, "xenocardGroups", groupId, "members", newUid, "cards", cardId), cardData);
+      await setDoc(doc(db, "xenocardPublicCards", slug), cardData);
+      await setDoc(doc(db, "xenocardGroups", groupId, "members", newUid), {
         uid: newUid,
-        email: String(addPersonal.email ?? ""),
+        email: memberJson.email ?? email,
         displayName: addPersonal.name ?? "",
         cardSlug: slug,
       });
+      await setDoc(
+        doc(db, "xenocardUsers", newUid),
+        {
+          role: "member",
+          groupId,
+          email: memberJson.email ?? email,
+          cardSlug: slug,
+          enabled: true,
+        },
+        { merge: true },
+      );
 
       setShowAddForm(false);
       setAddPersonal({});
@@ -531,17 +585,16 @@ export default function AdminPage() {
 
     try {
       const cardsSnap = await getDocs(
-        collection(db, "groups", groupId, "members", m.uid, "cards"),
+        collection(db, "xenocardGroups", groupId, "members", m.uid, "cards"),
       );
       await Promise.all(cardsSnap.docs.map((d) => deleteDoc(d.ref)));
-      if (m.cardSlug) await deleteDoc(doc(db, "publicCards", m.cardSlug));
-      await deleteDoc(doc(db, "groups", groupId, "members", m.uid));
-      await deleteDoc(doc(db, "users", m.uid));
-      await fetch("/api/delete-member", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: m.uid }),
-      });
+      if (m.cardSlug) await deleteDoc(doc(db, "xenocardPublicCards", m.cardSlug));
+      await deleteDoc(doc(db, "xenocardGroups", groupId, "members", m.uid));
+      await setDoc(
+        doc(db, "xenocardUsers", m.uid),
+        { enabled: false, cardSlug: "" },
+        { merge: true },
+      );
       if (editingUid === m.uid) setEditingUid(null);
     } catch (err) {
       alert(errorMessage(err));
@@ -573,28 +626,34 @@ export default function AdminPage() {
 
     try {
       const cardsSnap = await getDocs(
-        collection(db, "groups", groupId, "members", editingUid, "cards"),
+        collection(db, "xenocardGroups", groupId, "members", editingUid, "cards"),
       );
       const cardId = cardsSnap.empty ? `card-${Date.now()}` : cardsSnap.docs[0].id;
       const slug = String(editPersonal.slug || createCardSlug(String(editPersonal.name ?? "")));
 
       const updated = {
         ...buildMemberCard(group, editPersonal),
+        groupId,
         slug,
         updatedAt: serverTimestamp(),
       };
 
       await setDoc(
-        doc(db, "groups", groupId, "members", editingUid, "cards", cardId),
+        doc(db, "xenocardGroups", groupId, "members", editingUid, "cards", cardId),
         updated,
         { merge: true },
       );
-      await setDoc(doc(db, "publicCards", slug), updated, { merge: true });
+      await setDoc(doc(db, "xenocardPublicCards", slug), updated, { merge: true });
 
       // メンバードキュメントの表示名を更新
       await setDoc(
-        doc(db, "groups", groupId, "members", editingUid),
-        { displayName: editPersonal.name ?? "" },
+        doc(db, "xenocardGroups", groupId, "members", editingUid),
+        { displayName: editPersonal.name ?? "", cardSlug: slug },
+        { merge: true },
+      );
+      await setDoc(
+        doc(db, "xenocardUsers", editingUid),
+        { cardSlug: slug },
         { merge: true },
       );
 

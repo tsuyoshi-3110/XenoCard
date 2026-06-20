@@ -1,9 +1,107 @@
 rules_version = '2';
 
+// Pageit側の既存Firestore Rulesへ、このXenoCard用ルールを統合してください。
+// このファイル単体をPageitへデプロイすると、Pageit既存ルールを上書きするため禁止です。
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+    function isLogin() {
+      return request.auth != null;
+    }
+
+    function isXenoAdmin() {
+      return isLogin()
+        && exists(/databases/$(database)/documents/xenocardUsers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/xenocardUsers/$(request.auth.uid)).data.role == "admin"
+        && get(/databases/$(database)/documents/xenocardUsers/$(request.auth.uid)).data.enabled == true;
+    }
+
+    function isSameXenoGroup(groupId) {
+      return isXenoAdmin()
+        && get(/databases/$(database)/documents/xenocardUsers/$(request.auth.uid)).data.groupId
+          == groupId;
+    }
+
+    function isGroupAdmin(groupId) {
+      return isLogin()
+        && exists(/databases/$(database)/documents/xenocardGroups/$(groupId))
+        && get(/databases/$(database)/documents/xenocardGroups/$(groupId)).data.adminUid
+          == request.auth.uid;
+    }
+
+    function isGroupMember(groupId) {
+      return isLogin()
+        && exists(
+          /databases/$(database)/documents/xenocardGroups/$(groupId)/members/$(request.auth.uid)
+        );
+    }
+
+    match /xenocardUsers/{uid} {
+      allow read: if isLogin() && (request.auth.uid == uid || isXenoAdmin());
+
+      allow create: if isLogin()
+        && (
+          (
+            isSameXenoGroup(request.resource.data.groupId)
+            && request.resource.data.role == "member"
+          )
+          || (
+            request.auth.uid == uid
+            && request.resource.data.role == "admin"
+            && request.resource.data.enabled == true
+            && request.resource.data.groupId == "group-" + request.auth.uid
+          )
+        );
+
+      allow update: if (
+          isSameXenoGroup(resource.data.groupId)
+          && request.resource.data.groupId == resource.data.groupId
+        )
+        || (
+          isLogin()
+          && request.auth.uid == uid
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.groupId == resource.data.groupId
+          && request.resource.data.enabled == resource.data.enabled
+        );
+
+      allow delete: if isSameXenoGroup(resource.data.groupId);
+    }
+
+    match /xenocardUsers/{uid}/{document=**} {
+      allow read, write: if isLogin() && request.auth.uid == uid;
+    }
+
+    match /xenocardGroups/{groupId} {
+      allow read: if (
+        isLogin() && resource.data.adminUid == request.auth.uid
+      ) || isGroupMember(groupId);
+      allow create: if isLogin()
+        && request.resource.data.adminUid == request.auth.uid
+        && groupId == "group-" + request.auth.uid;
+      allow update: if isGroupAdmin(groupId)
+        && request.resource.data.adminUid == resource.data.adminUid;
+      allow delete: if isGroupAdmin(groupId);
+    }
+
+    match /xenocardGroups/{groupId}/members/{uid} {
+      allow read: if isGroupAdmin(groupId)
+        || (isLogin() && request.auth.uid == uid);
+      allow write: if isGroupAdmin(groupId);
+    }
+
+    match /xenocardGroups/{groupId}/members/{uid}/{document=**} {
+      allow read: if isGroupAdmin(groupId)
+        || (isLogin() && request.auth.uid == uid);
+      allow write: if isGroupAdmin(groupId);
+    }
+
+    match /xenocardPublicCards/{slug} {
+      allow read: if true;
+      allow create: if isSameXenoGroup(request.resource.data.groupId);
+      allow update: if isSameXenoGroup(resource.data.groupId)
+        && request.resource.data.groupId == resource.data.groupId;
+      allow delete: if isSameXenoGroup(resource.data.groupId);
     }
   }
 }

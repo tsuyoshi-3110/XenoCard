@@ -1,16 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebase-admin";
+import { NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
-  try {
-    const { uid } = (await req.json()) as { uid: string };
-    if (!uid) {
-      return NextResponse.json({ error: "uid is required" }, { status: 400 });
-    }
-    await adminAuth.deleteUser(uid);
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+export async function POST() {
+  return NextResponse.json(
+    {
+      error:
+        "Firebase AuthenticationはPageitと共用です。XenoCardからPageitアカウントは削除できません。",
+    },
+    { status: 410 },
+  );
 }
