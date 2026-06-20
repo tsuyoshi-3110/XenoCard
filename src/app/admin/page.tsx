@@ -224,9 +224,14 @@ export default function AdminPage() {
 
   const handleShare = (slug: string, name: string) => {
     const url = getCardUrl(slug);
-    const subject = encodeURIComponent(`${name}の名刺`);
-    const body = encodeURIComponent(getCardMessage(name, url));
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    if (navigator.share) {
+      void navigator.share({ title: `${name}の名刺`, text: getCardMessage(name, url), url });
+    } else {
+      // Web Share API非対応環境ではメールにフォールバック
+      const subject = encodeURIComponent(`${name}の名刺`);
+      const body = encodeURIComponent(getCardMessage(name, url));
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    }
   };
 
   // 認証チェック
