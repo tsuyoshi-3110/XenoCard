@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { signOut } from "firebase/auth";
+import { AsYouType } from "libphonenumber-js";
 import { Bot, Check, ChevronDown, ChevronUp, Copy, Eye, Plus, Save, Share2, Sparkles, Trash2, UserRound, WandSparkles, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { auth, db, storage } from "@/lib/firebase";
@@ -72,6 +73,10 @@ const MEMBER_FIELDS: Array<{
 
 type Member = { uid: string; email: string; displayName: string; cardSlug: string; isAdmin?: boolean };
 type MemberWithCard = Member & { card: BusinessCard | null };
+
+function formatPhoneJP(raw: string): string {
+  return new AsYouType("JP").input(raw.replace(/[^\d+]/g, ""));
+}
 
 function errorMessage(e: unknown) {
   return e instanceof Error ? e.message : "エラーが発生しました";
@@ -1026,7 +1031,10 @@ export default function AdminPage() {
                           type={f.type ?? "text"}
                           value={String(addPersonal[f.name] ?? "")}
                           onChange={(e) =>
-                            setAddPersonal((p) => ({ ...p, [f.name]: e.target.value }))
+                            setAddPersonal((p) => ({
+                              ...p,
+                              [f.name]: f.name === "phone" ? formatPhoneJP(e.target.value) : e.target.value,
+                            }))
                           }
                           placeholder={f.placeholder}
                           className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-black outline-none focus:border-stone-500"
@@ -1183,7 +1191,10 @@ export default function AdminPage() {
                                 type={f.type ?? "text"}
                                 value={String(editPersonal[f.name] ?? "")}
                                 onChange={(e) =>
-                                  setEditPersonal((p) => ({ ...p, [f.name]: e.target.value }))
+                                  setEditPersonal((p) => ({
+                                    ...p,
+                                    [f.name]: f.name === "phone" ? formatPhoneJP(e.target.value) : e.target.value,
+                                  }))
                                 }
                                 placeholder={f.placeholder}
                                 className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-black outline-none focus:border-stone-500"
