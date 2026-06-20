@@ -17,7 +17,7 @@ import {
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { signOut } from "firebase/auth";
-import { Bot, Check, ChevronDown, ChevronUp, Copy, Plus, Save, Share2, Sparkles, Trash2, UserRound, WandSparkles, X } from "lucide-react";
+import { Bot, Check, ChevronDown, ChevronUp, Copy, Eye, Plus, Save, Share2, Sparkles, Trash2, UserRound, WandSparkles, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { auth, db, storage } from "@/lib/firebase";
 import {
@@ -172,6 +172,7 @@ export default function AdminPage() {
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [copiedMsgSlug, setCopiedMsgSlug] = useState<string | null>(null);
   const [copyPopSlug, setCopyPopSlug] = useState<string | null>(null);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
   const getCardUrl = (slug: string) =>
     `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app"}/m/${slug}`;
@@ -858,6 +859,18 @@ export default function AdminPage() {
                     onChange={(e) => setGroupBgFile(e.target.files?.[0] ?? null)}
                   />
                 </label>
+
+                {/* モバイル: プレビューボタン */}
+                <div className="flex h-28 items-end lg:hidden" style={{ marginTop: "20px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewModalOpen(true)}
+                    className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-xs font-semibold text-black transition hover:bg-stone-50"
+                  >
+                    <Eye className="h-4 w-4" />
+                    プレビュー
+                  </button>
+                </div>
               </div>
 
               {/* カラー */}
@@ -936,6 +949,44 @@ export default function AdminPage() {
             </div>
           </div>
         </section>
+
+        {/* モバイル用フルスクリーンプレビューモーダル */}
+        {previewModalOpen && (
+          <div className="fixed inset-0 z-50 flex flex-col bg-[#0d0d0d] lg:hidden">
+            {/* ヘッダー */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <p className="text-xs font-semibold tracking-wider text-white/50">プレビュー</p>
+              <button
+                type="button"
+                onClick={() => setPreviewModalOpen(false)}
+                className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {/* 名刺プレビュー */}
+            <div className="flex flex-1 items-center justify-center px-6">
+              <div className="w-full max-w-xs overflow-hidden rounded-[30px] border border-white/10 shadow-2xl">
+                <BusinessCardPreview
+                  card={{ ...EMPTY_BUSINESS_CARD, ...previewGroup, name: "山田 太郎", title: "代表取締役" }}
+                  qrValue="https://xenocard.app/preview"
+                  textScale={1.0}
+                  onLogoChange={
+                    (group.logoUrl || groupLogoPreview)
+                      ? ({ logoX, logoY, logoSize }) =>
+                          setGroup((g) => ({ ...g, logoX, logoY, logoSize }))
+                      : undefined
+                  }
+                />
+              </div>
+            </div>
+            {(group.logoUrl || groupLogoPreview) && (
+              <p className="pb-4 text-center text-[11px] text-white/30">
+                ロゴをドラッグ → 移動　右下◻️ → リサイズ
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ── メンバー一覧 ── */}
         <section className="rounded-2xl border border-black/8 bg-white p-4 sm:p-6 shadow-sm">
