@@ -132,9 +132,13 @@ export default function BusinessCardPreview({
     >
       {/* 背景 */}
       {backgroundUrl ? (
-        <div
-          className="absolute inset-0 bg-cover bg-top"
-          style={{ backgroundImage: `url("${backgroundUrl}")` }}
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={backgroundUrl}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-top"
         />
       ) : (
         <div

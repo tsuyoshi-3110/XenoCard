@@ -502,8 +502,13 @@ export default function AdminPage() {
   const applyAiResult = async () => {
     if (!aiResult) return;
     const file = await dataUrlToFile(aiResult.dataUrl, `ai-${aiResult.kind}-${Date.now()}.png`);
-    if (aiResult.kind === "logo") { setGroupLogoFile(file); setAiPreviewLogo(null); }
-    else { setGroupBgFile(file); setAiPreviewBg(null); }
+    if (aiResult.kind === "logo") {
+      setGroupLogoFile(file);
+      setAiPreviewLogo(aiResult.dataUrl);
+    } else {
+      setGroupBgFile(file);
+      setAiPreviewBg(aiResult.dataUrl);
+    }
     setAiResult(null);
     setAiStatus("");
     setAiOpen(false);
@@ -539,6 +544,8 @@ export default function AdminPage() {
       setGroup(updatedGroup);
       setGroupLogoFile(null);
       setGroupBgFile(null);
+      setAiPreviewLogo(null);
+      setAiPreviewBg(null);
 
       // 既存メンバーのカードにもグループ設定を反映
       await Promise.all(
@@ -1083,6 +1090,8 @@ export default function AdminPage() {
               <PhoneMockup width={220}>
                 <BusinessCardPreview
                   card={{ ...EMPTY_BUSINESS_CARD, ...previewGroup, name: "山田 太郎", title: "代表取締役" }}
+                  logoPreviewUrl={previewGroup.logoUrl}
+                  backgroundPreviewUrl={previewGroup.backgroundUrl}
                   qrValue="https://xenocard.app/preview"
                   fill
                   textScale={1.0}
@@ -1122,6 +1131,8 @@ export default function AdminPage() {
               <div className="w-full max-w-xs overflow-hidden rounded-[30px] border border-white/10 shadow-2xl">
                 <BusinessCardPreview
                   card={{ ...EMPTY_BUSINESS_CARD, ...previewGroup, name: "山田 太郎", title: "代表取締役" }}
+                  logoPreviewUrl={previewGroup.logoUrl}
+                  backgroundPreviewUrl={previewGroup.backgroundUrl}
                   qrValue="https://xenocard.app/preview"
                   textScale={1.0}
                   onLogoChange={
