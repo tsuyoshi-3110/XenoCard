@@ -1,6 +1,6 @@
 import OpenAI, { toFile } from "openai";
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -13,6 +13,7 @@ type RequestBody = {
   company?: string;
   mainColor?: string;
   editImageDataUrl?: string;
+  useStoreContext?: boolean;
 };
 
 type BuildPromptArgs = {
@@ -20,6 +21,7 @@ type BuildPromptArgs = {
   prompt: string;
   company: string;
   mainColor: string;
+  storeContext?: string;
 };
 
 const generationHistory = new Map<string, number[]>();
@@ -46,10 +48,128 @@ async function verifyFirebaseToken(token: string): Promise<string | null> {
   }
 }
 
-function buildPrompt({ kind, prompt, company, mainColor }: BuildPromptArgs): string {
+function asText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .join("、")
+      .trim();
+  }
+  return "";
+}
+
+function firstText(
+  sources: Array<Record<string, unknown> | null>,
+  keys: string[],
+): string {
+  for (const source of sources) {
+    if (!source) continue;
+    for (const key of keys) {
+      const value = asText(source[key]);
+      if (value) return value;
+    }
+  }
+  return "";
+}
+
+async function loadStoreContext(uid: string): Promise<{
+  company: string;
+  context: string;
+}> {
+  const settingsQuery = await adminDb
+    .collection("siteSettings")
+    .where("ownerId", "==", uid)
+    .limit(1)
+    .get();
+  const settingsDoc = settingsQuery.docs[0];
+  if (!settingsDoc) {
+    throw new Error(
+      "Pageitの店舗情報が見つかりません。Pageitの管理者アカウントでお試しください。",
+    );
+  }
+
+  const siteKey = settingsDoc.id;
+  const settings = settingsDoc.data() as Record<string, unknown>;
+  const [editableSnapshot, storesSnapshot] = await Promise.all([
+    adminDb.collection("siteSettingsEditable").doc(siteKey).get(),
+    adminDb.collection("siteStores").doc(siteKey).collection("items").limit(5).get(),
+  ]);
+  const editable = editableSnapshot.exists
+    ? (editableSnapshot.data() as Record<string, unknown>)
+    : null;
+  const sources = [editable, settings];
+  const company = firstText(sources, [
+    "siteName",
+    "shopName",
+    "storeName",
+    "companyName",
+    "name",
+  ]);
+  const details = [
+    company ? `店名・会社名: ${company}` : "",
+    firstText(sources, ["tagline", "catchphrase", "subTitle"])
+      ? `キャッチコピー: ${firstText(sources, ["tagline", "catchphrase", "subTitle"])}`
+      : "",
+    firstText(sources, [
+      "description",
+      "siteDescription",
+      "businessDescription",
+      "about",
+      "introText",
+      "companyDescription",
+    ])
+      ? `店舗・事業の紹介: ${firstText(sources, [
+          "description",
+          "siteDescription",
+          "businessDescription",
+          "about",
+          "introText",
+          "companyDescription",
+        ])}`
+      : "",
+    firstText(sources, ["keywords", "services", "categories"])
+      ? `商品・サービス・特徴: ${firstText(sources, [
+          "keywords",
+          "services",
+          "categories",
+        ])}`
+      : "",
+    firstText(sources, ["ownerAddress", "address", "area"])
+      ? `地域: ${firstText(sources, ["ownerAddress", "address", "area"])}`
+      : "",
+    ...storesSnapshot.docs.map((storeDoc) => {
+      const store = storeDoc.data() as Record<string, unknown>;
+      return [
+        asText(store.name),
+        asText(store.description),
+        asText(store.category),
+        asText(store.address),
+      ]
+        .filter(Boolean)
+        .join(" / ");
+    }),
+  ].filter(Boolean);
+
+  return {
+    company,
+    context: details.join("\n").slice(0, 3000),
+  };
+}
+
+function buildPrompt({
+  kind,
+  prompt,
+  company,
+  mainColor,
+  storeContext,
+}: BuildPromptArgs): string {
   const brandContext = [
     company ? `Brand or company: ${company}.` : "",
     mainColor ? `Primary accent color: ${mainColor}.` : "",
+    storeContext
+      ? `The following verified Pageit store information must guide the visual concept:\n${storeContext}`
+      : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -108,8 +228,12 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as RequestBody;
     const kind = body.kind;
-    const prompt = String(body.prompt || "").trim().slice(0, 1200);
-    if ((kind !== "background" && kind !== "logo") || !prompt) {
+    const useStoreContext = body.useStoreContext === true;
+    let prompt = String(body.prompt || "").trim().slice(0, 1200);
+    if (
+      (kind !== "background" && kind !== "logo") ||
+      (!prompt && !useStoreContext)
+    ) {
       return NextResponse.json(
         { error: "生成種類とデザイン指示を入力してください。" },
         { status: 400 },
@@ -127,6 +251,18 @@ export async function POST(request: NextRequest) {
     const openai = new OpenAI({ apiKey });
     const size = kind === "logo" ? "1024x1024" : "1024x1536";
     let base64: string | null | undefined;
+    let storeContext = "";
+    let company = String(body.company || "").trim().slice(0, 120);
+
+    if (useStoreContext) {
+      const store = await loadStoreContext(uid);
+      storeContext = store.context;
+      company = store.company || company;
+      prompt =
+        kind === "logo"
+          ? "Create a distinctive symbol that naturally expresses this store's business, atmosphere, values, customers, and local character."
+          : "Create a distinctive visual identity that naturally expresses this store's business, atmosphere, values, customers, and local character.";
+    }
 
     if (body.editImageDataUrl) {
       // 既存画像を編集モード
@@ -140,8 +276,9 @@ export async function POST(request: NextRequest) {
         prompt: buildPrompt({
           kind,
           prompt,
-          company: String(body.company || "").trim().slice(0, 120),
+          company,
           mainColor: String(body.mainColor || "").trim().slice(0, 20),
+          storeContext,
         }),
         n: 1,
         size,
@@ -156,8 +293,9 @@ export async function POST(request: NextRequest) {
         prompt: buildPrompt({
           kind,
           prompt,
-          company: String(body.company || "").trim().slice(0, 120),
+          company,
           mainColor: String(body.mainColor || "").trim().slice(0, 20),
+          storeContext,
         }),
         n: 1,
         size,

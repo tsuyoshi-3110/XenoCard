@@ -443,15 +443,20 @@ export default function AdminPage() {
   };
 
   // ── AI画像生成 ────────────────────────────────────────────────
-  const generateAiImage = async (editImageDataUrl?: string) => {
+  const generateAiImage = async (
+    editImageDataUrl?: string,
+    useStoreContext = false,
+  ) => {
     const promptToUse = editImageDataUrl ? aiEditPrompt : aiPrompt;
-    if (!user || aiGenerating || !promptToUse.trim()) return;
+    if (!user || aiGenerating || (!promptToUse.trim() && !useStoreContext)) return;
     setAiGenerating(true);
     setAiError("");
     if (!editImageDataUrl) setAiResult(null);
     setAiStatus(
       editImageDataUrl
         ? "AIが画像を編集しています。通常30秒〜2分ほどかかります。"
+        : useStoreContext
+          ? "Pageitの店舗情報を読み込み、お店に似合うデザインを考えています…"
         : "OpenAIへ画像生成を依頼しています。通常30秒〜2分ほどかかります。",
     );
     const controller = new AbortController();
@@ -467,6 +472,7 @@ export default function AdminPage() {
           prompt: promptToUse,
           company: group.company,
           mainColor: group.mainColor,
+          useStoreContext,
           ...(editImageDataUrl ? { editImageDataUrl } : {}),
         }),
         signal: controller.signal,
@@ -818,6 +824,20 @@ export default function AdminPage() {
                   </button>
                 ))}
               </div>
+
+              <button
+                type="button"
+                onClick={() => void generateAiImage(undefined, true)}
+                disabled={aiGenerating}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-violet-300 bg-white px-4 py-3 text-sm font-semibold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                お店に似合うデザインを作成する
+              </button>
+              <p className="mt-2 text-center text-[11px] leading-relaxed text-black/45">
+                Pageitに登録されている店名・紹介文・サービス・地域情報をAIが読み取り、
+                {aiKind === "background" ? "背景" : "ロゴ"}を提案します。
+              </p>
 
               <label className="mt-4 block">
                 <span className="text-xs font-semibold text-black/70">デザイン指示</span>
