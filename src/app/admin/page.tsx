@@ -1095,7 +1095,20 @@ export default function AdminPage() {
                             </span>
                           )}
                         </div>
-                        <p className="truncate text-xs text-black/50">{m.email}</p>
+                        {m.isAdmin ? (
+                          <div className="mt-0.5 space-y-0.5">
+                            <p className="truncate text-xs text-black/50">
+                              <span className="text-black/30">ログイン用：</span>{m.email}
+                            </p>
+                            {m.card?.email && (
+                              <p className="truncate text-xs text-black/50">
+                                <span className="text-black/30">名刺用：</span>{m.card.email}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="truncate text-xs text-black/50">{m.email}</p>
+                        )}
                       </div>
                     </div>
                     {/* ボタン行 */}
