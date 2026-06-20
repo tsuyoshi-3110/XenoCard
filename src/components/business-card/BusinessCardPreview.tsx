@@ -108,16 +108,20 @@ export default function BusinessCardPreview({
     const deltaPct = ((e.clientX - d.startCX + (e.clientY - d.startCY)) / 2) / rect.width * 100;
     onLogoChange?.({
       logoX: d.startX, logoY: d.startY,
-      logoSize: Math.round(Math.max(5, Math.min(60, d.startSize + deltaPct)) * 10) / 10,
+      logoSize:
+        Math.round(
+          Math.max(5, Math.min(90, d.startSize + deltaPct)) * 10,
+        ) / 10,
     });
   };
 
   const onPU = () => { drag.current = null; };
 
   const interactive = !!onLogoChange;
-  // logoSize はカード幅に対する% (5–60)。旧形式(px, >60)は変換
+  // logoSize はカード幅に対する% (5–90)。
   const rawSize = card.logoSize ?? 20;
-  const logoSize = rawSize > 60 ? 20 : rawSize; // px時代の値はデフォルトに戻す
+  const logoSize =
+    rawSize >= 5 && rawSize <= 90 ? rawSize : 20;
   const logoX = card.logoX ?? 8;
   const logoY = card.logoY ?? 8;
 

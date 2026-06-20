@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import QRCode from "qrcode";
-import { CreditCard, LogIn, QrCode, Share2, X } from "lucide-react";
+import { CreditCard, QrCode, Share2, X } from "lucide-react";
 import { type BusinessCard } from "@/lib/businessCard";
 import { db } from "@/lib/firebase";
 
@@ -123,13 +122,6 @@ export default function MemberPage() {
             <Share2 className="h-5 w-5" />
             この名刺を共有
           </button>
-          <Link
-            href="/login"
-            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-white/10 text-sm font-medium text-white/35 transition hover:bg-white/5"
-          >
-            <LogIn className="h-4 w-4" />
-            ログイン
-          </Link>
         </div>
       </div>
 

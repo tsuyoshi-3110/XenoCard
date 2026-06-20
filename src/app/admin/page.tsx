@@ -312,7 +312,12 @@ export default function AdminPage() {
             backgroundUrl: gData.backgroundUrl ?? "",
             mainColor: gData.mainColor ?? "#c9a96e",
             textColor: gData.textColor ?? "#ffffff",
-            logoSize: (gData.logoSize && gData.logoSize <= 60) ? gData.logoSize : 20, // px時代の値はリセット
+            logoSize:
+              typeof gData.logoSize === "number" &&
+              gData.logoSize >= 5 &&
+              gData.logoSize <= 90
+                ? gData.logoSize
+                : 20,
             logoX: gData.logoX ?? 8,
             logoY: gData.logoY ?? 8,
           });
