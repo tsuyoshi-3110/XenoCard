@@ -15,12 +15,11 @@ import {
   setDoc,
   where,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { signOut } from "firebase/auth";
 import { AsYouType } from "libphonenumber-js";
 import { Bot, Check, ChevronDown, ChevronUp, Copy, Eye, Plus, Save, Share2, Sparkles, Trash2, UserRound, WandSparkles, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import {
   buildVCard,
   createCardSlug,
@@ -113,10 +112,34 @@ function cropToAspect(dataUrl: string, ratio: number): Promise<string> {
   });
 }
 
-async function uploadImage(file: File, path: string): Promise<string> {
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type });
-  return getDownloadURL(storageRef);
+async function uploadImage(
+  file: File,
+  groupId: string,
+  fileName: string,
+): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("ログイン情報がありません。");
+
+  const formData = new FormData();
+  formData.set("image", file);
+  formData.set("groupId", groupId);
+  formData.set("fileName", fileName);
+
+  const response = await fetch("/api/upload-image", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${await user.getIdToken()}`,
+    },
+    body: formData,
+  });
+  const json = (await response.json()) as {
+    downloadUrl?: string;
+    error?: string;
+  };
+  if (!response.ok || !json.downloadUrl) {
+    throw new Error(json.error || "画像を保存できませんでした。");
+  }
+  return json.downloadUrl;
 }
 
 // ── メンバーカードを作成（グループ設定 + 個人情報をマージ）──────
@@ -531,11 +554,15 @@ export default function AdminPage() {
       const [logoUrl, backgroundUrl] = await Promise.all([
         groupLogoFile
           ? compressImageToWebP(groupLogoFile, { maxBytes: 300 * 1024, maxWidth: 1200, maxHeight: 1200 })
-              .then((f) => uploadImage(f, `xenocard/groups/${groupId}/logo-${Date.now()}.webp`))
+              .then((f) =>
+                uploadImage(f, groupId, `logo-${Date.now()}.webp`),
+              )
           : Promise.resolve(group.logoUrl),
         groupBgFile
           ? compressImageToWebP(groupBgFile, { maxBytes: 500 * 1024, maxWidth: 1440, maxHeight: 2560 })
-              .then((f) => uploadImage(f, `xenocard/groups/${groupId}/background-${Date.now()}.webp`))
+              .then((f) =>
+                uploadImage(f, groupId, `background-${Date.now()}.webp`),
+              )
           : Promise.resolve(group.backgroundUrl),
       ]);
 
