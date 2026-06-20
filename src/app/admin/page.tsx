@@ -1075,13 +1075,14 @@ export default function AdminPage() {
             ) : (
               members.map((m) => (
                 <div key={m.uid} className="rounded-xl border border-stone-100 bg-stone-50">
-                  <div className="flex items-center justify-between px-4 py-3.5">
+                  <div className="px-4 py-3">
+                    {/* 名前行 */}
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-200">
                         <UserRound className="h-4 w-4 text-black" />
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
                           <p className="truncate text-sm font-semibold text-black">{m.displayName || m.email}</p>
                           {m.isAdmin && (
                             <span className="shrink-0 rounded-full bg-stone-900 px-2 py-0.5 text-[10px] font-semibold text-white">
@@ -1092,7 +1093,8 @@ export default function AdminPage() {
                         <p className="truncate text-xs text-black/50">{m.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    {/* ボタン行 */}
+                    <div className="mt-2.5 flex items-center justify-end gap-2">
                       {m.cardSlug && (
                         <>
                           {/* コピーボタン → ポップアップ */}
@@ -1103,7 +1105,7 @@ export default function AdminPage() {
                               className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
                             >
                               <Copy className="h-3 w-3" />
-                              <span className="hidden sm:inline">コピー</span>
+                              コピー
                             </button>
                             {/* ポップアップ */}
                             {copyPopSlug === m.cardSlug && (
@@ -1149,7 +1151,7 @@ export default function AdminPage() {
                             className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-stone-100"
                           >
                             <Share2 className="h-3 w-3" />
-                            <span className="hidden sm:inline">送る</span>
+                            送る
                           </button>
                         </>
                       )}
@@ -1160,7 +1162,7 @@ export default function AdminPage() {
                         }
                         className="flex items-center gap-1 rounded-full bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black"
                       >
-                        <span className="hidden sm:inline">編集</span>
+                        編集
                         {editingUid === m.uid ? (
                           <ChevronUp className="h-3 w-3" />
                         ) : (
