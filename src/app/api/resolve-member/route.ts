@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+
+function buildExternalMemberUid(email: string): string {
+  // Auth未登録メンバー向けに、メールから安定したUIDを生成する
+  const digest = createHash("sha256").update(email).digest("hex");
+  return `external-${digest.slice(0, 28)}`;
+}
 
 export async function POST(request: NextRequest) {
   const authorization = request.headers.get("authorization") ?? "";
   const token = authorization.startsWith("Bearer ")
     ? authorization.slice(7)
     : "";
+  let email = "";
 
   if (!token) {
     return NextResponse.json(
@@ -33,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as { email?: string };
-    const email = String(body.email ?? "").trim().toLowerCase();
+    email = String(body.email ?? "").trim().toLowerCase();
     if (!email) {
       return NextResponse.json(
         { error: "メールアドレスを入力してください。" },
@@ -50,10 +58,7 @@ export async function POST(request: NextRequest) {
         : "";
 
     if (code === "auth/user-not-found") {
-      return NextResponse.json(
-        { error: "Pageitにこのメールアドレスのアカウントがありません。" },
-        { status: 404 },
-      );
+      return NextResponse.json({ uid: buildExternalMemberUid(email), email });
     }
 
     const message =

@@ -169,6 +169,9 @@ export default function AdminPage() {
   const [savingGroup, setSavingGroup] = useState(false);
   const [groupMsg, setGroupMsg] = useState("");
 
+  // Pageit店舗情報の有無（null=未確認、true=あり、false=なし）
+  const [hasPageitSite, setHasPageitSite] = useState<boolean | null>(null);
+
   // AI生成
   const [aiOpen, setAiOpen] = useState(false);
   const [aiKind, setAiKind] = useState<"background" | "logo">("background");
@@ -276,7 +279,7 @@ export default function AdminPage() {
     const init = async () => {
       const userRef = doc(db, "xenocardUsers", user.uid);
       setInitStatus("アカウントとグループ情報を読み込んでいます…");
-      const [userSnap, groupsSnap] = await Promise.all([
+      const [userSnap, groupsSnap, pageitSnap] = await Promise.all([
         getDoc(userRef),
         getDocs(
           query(
@@ -285,7 +288,11 @@ export default function AdminPage() {
             limit(1),
           ),
         ),
+        getDocs(
+          query(collection(db, "siteSettings"), where("ownerId", "==", user.uid), limit(1)),
+        ).catch(() => null),
       ]);
+      if (active) setHasPageitSite(pageitSnap != null && !pageitSnap.empty);
       const userProfile = userSnap.exists() ? userSnap.data() : null;
 
       if (userProfile && userProfile.role !== "admin") {
@@ -621,7 +628,7 @@ export default function AdminPage() {
 
     try {
       const email = String(addPersonal.email ?? "").trim().toLowerCase();
-      if (!email) throw new Error("Pageitアカウントのメールアドレスを入力してください。");
+      if (!email) throw new Error("メールアドレスを入力してください。");
 
       const token = await user?.getIdToken();
       if (!token) throw new Error("ログイン情報を確認できませんでした。");
@@ -640,7 +647,7 @@ export default function AdminPage() {
         error?: string;
       };
       if (!memberResponse.ok || !memberJson.uid) {
-        throw new Error(memberJson.error || "Pageitアカウントを確認できませんでした。");
+        throw new Error(memberJson.error || "メンバー情報を確認できませんでした。");
       }
 
       const newUid = memberJson.uid;
@@ -864,19 +871,23 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={() => void generateAiImage(undefined, true)}
-                disabled={aiGenerating}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-violet-300 bg-white px-4 py-3 text-sm font-semibold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Sparkles className="h-4 w-4" />
-                お店に似合うデザインを作成する
-              </button>
-              <p className="mt-2 text-center text-[11px] leading-relaxed text-black/45">
-                Pageitに登録されている店名・紹介文・サービス・地域情報をAIが読み取り、
-                {aiKind === "background" ? "背景" : "ロゴ"}を提案します。
-              </p>
+              {hasPageitSite && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void generateAiImage(undefined, true)}
+                    disabled={aiGenerating}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-violet-300 bg-white px-4 py-3 text-sm font-semibold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    お店に似合うデザインを作成する
+                  </button>
+                  <p className="mt-2 text-center text-[11px] leading-relaxed text-black/45">
+                    Pageitに登録されている店名・紹介文・サービス・地域情報をAIが読み取り、
+                    {aiKind === "background" ? "背景" : "ロゴ"}を提案します。
+                  </p>
+                </>
+              )}
 
               <label className="mt-4 block">
                 <span className="text-xs font-semibold text-black/70">デザイン指示</span>
