@@ -12,6 +12,25 @@ export const metadata: Metadata = {
     template: "%s | XenoCard",
   },
   description: "QRコード付きデジタル名刺を表示・管理するPWAアプリ",
+  openGraph: {
+    title: "XenoCard",
+    description: "QRコード付きデジタル名刺を表示・管理するPWAアプリ",
+    images: [
+      {
+        url: "/ogpLogo-1200x630.png",
+        width: 1200,
+        height: 630,
+        alt: "XenoCard OGP",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "XenoCard",
+    description: "QRコード付きデジタル名刺を表示・管理するPWAアプリ",
+    images: ["/ogpLogo-1200x630.png"],
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
