@@ -24,6 +24,7 @@ import {
   buildVCard,
   createCardSlug,
   EMPTY_BUSINESS_CARD,
+  normalizeCardSlug,
   type BusinessCard,
 } from "@/lib/businessCard";
 import { compressImageToWebP } from "@/lib/imageCompression";
@@ -209,7 +210,7 @@ export default function AdminPage() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
   const getCardUrl = (slug: string) =>
-    `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app"}/m/${slug}`;
+    `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app"}/m/${encodeURIComponent(slug || "")}`;
 
   const getCardMessage = (name: string, url: string) =>
     `${name}のデジタル名刺はこちらからご確認いただけます。\n\n${url}\n\n※ブラウザで開いてブックマークに登録しておくと便利です。`;
@@ -298,7 +299,7 @@ export default function AdminPage() {
       if (userProfile && userProfile.role !== "admin") {
         const memberPath =
           typeof userProfile.cardSlug === "string" && userProfile.cardSlug
-            ? `/m/${userProfile.cardSlug}`
+            ? `/m/${encodeURIComponent(userProfile.cardSlug)}`
             : "/my-card";
         router.replace(memberPath);
         return;
@@ -742,7 +743,8 @@ export default function AdminPage() {
         collection(db, "xenocardGroups", groupId, "members", editingUid, "cards"),
       );
       const cardId = cardsSnap.empty ? `card-${Date.now()}` : cardsSnap.docs[0].id;
-      const slug = String(editPersonal.slug || createCardSlug(String(editPersonal.name ?? "")));
+      const manualSlug = normalizeCardSlug(String(editPersonal.slug ?? ""));
+      const slug = manualSlug || createCardSlug(String(editPersonal.name ?? ""));
 
       const updated = {
         ...buildMemberCard(group, editPersonal),

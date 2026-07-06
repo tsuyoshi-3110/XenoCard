@@ -58,7 +58,7 @@ function SsoContent() {
           await signOut(auth);
           router.replace("/login?error=xenocard-disabled");
         } else if (profile?.role === "member" && profile?.cardSlug) {
-          router.replace(`/m/${profile.cardSlug}`);
+          router.replace(`/m/${encodeURIComponent(profile.cardSlug)}`);
         } else {
           router.replace("/admin");
         }

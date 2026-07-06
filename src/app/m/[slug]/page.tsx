@@ -34,7 +34,7 @@ export default function MemberPage() {
 
   const appOrigin = (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app");
   // 受け取った側には名刺ページ(/v/)を直接開かせる
-  const cardViewUrl = `${appOrigin}/v/${slug}`;
+  const cardViewUrl = `${appOrigin}/v/${encodeURIComponent(slug)}`;
 
   const handleNativeShare = () => {
     if (!card) return;
@@ -98,7 +98,7 @@ export default function MemberPage() {
         {/* ボタン */}
         <div className="grid gap-3">
           <a
-            href={`/v/${card.slug}`}
+            href={`/v/${encodeURIComponent(card.slug || "")}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-white text-base font-semibold text-black transition hover:bg-stone-100"

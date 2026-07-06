@@ -73,6 +73,15 @@ export function createCardSlug(name: string): string {
   return `${base || "card"}-${suffix}`;
 }
 
+export function normalizeCardSlug(value: string): string {
+  return String(value || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
 export function getPublicCardUrl(slug: string): string {
   const configuredOrigin = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
   const browserOrigin =

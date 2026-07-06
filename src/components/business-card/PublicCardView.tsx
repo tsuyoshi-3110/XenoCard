@@ -49,8 +49,9 @@ export default function PublicCardView({ slug }: { slug: string }) {
   }, [slug]);
 
   const appOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? (typeof window !== "undefined" ? window.location.origin : "");
-  const vcardUrl = `${appOrigin}/api/vcard/${slug}`;
-  const cardPageUrl = `${appOrigin}/v/${slug}`;
+  const encodedSlug = encodeURIComponent(slug);
+  const vcardUrl = `${appOrigin}/api/vcard/${encodedSlug}`;
+  const cardPageUrl = `${appOrigin}/v/${encodedSlug}`;
 
   const openInSafari = () => {
     // LINE内では window.open も制限されるため、Safariスキームで誘導
