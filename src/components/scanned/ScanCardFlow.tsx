@@ -18,8 +18,9 @@ import {
   type ScannedCard,
 } from "@/lib/scannedCard";
 import { addScannedCard } from "@/lib/scannedStore";
+import CardCropper from "@/components/scanned/CardCropper";
 
-type Step = "capture" | "processing" | "review" | "saving" | "done";
+type Step = "capture" | "crop" | "processing" | "review" | "saving" | "done";
 
 type FieldConfig = {
   key: keyof Omit<ScannedCard, "id" | "image" | "createdAt">;
@@ -56,6 +57,7 @@ export default function ScanCardFlow({
   const [warning, setWarning] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+  const [rawFile, setRawFile] = useState<File | null>(null);
   const [fields, setFields] = useState<ScannedCard>({ ...EMPTY_SCANNED_CARD });
   const [savedCard, setSavedCard] = useState<ScannedCard | null>(null);
 
@@ -63,6 +65,7 @@ export default function ScanCardFlow({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl("");
     setImageBlob(null);
+    setRawFile(null);
     setFields({ ...EMPTY_SCANNED_CARD });
     setError("");
     setWarning("");
@@ -71,7 +74,8 @@ export default function ScanCardFlow({
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const handleFile = async (file: File) => {
+  // 切り抜き後の画像を補正→OCR→確認へ
+  const handleCropped = async (file: File) => {
     setError("");
     setWarning("");
     setStep("processing");
@@ -170,9 +174,21 @@ export default function ScanCardFlow({
           className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (file) void handleFile(file);
+            if (file) {
+              setRawFile(file);
+              setError("");
+              setStep("crop");
+            }
           }}
         />
+
+        {step === "crop" && rawFile && (
+          <CardCropper
+            file={rawFile}
+            onConfirm={(cropped) => void handleCropped(cropped)}
+            onCancel={resetForNext}
+          />
+        )}
 
         {step === "capture" && (
           <div className="mx-auto flex max-w-sm flex-col items-center py-10 text-center">
