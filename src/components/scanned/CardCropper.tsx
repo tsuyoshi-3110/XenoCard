@@ -83,50 +83,55 @@ export default function CardCropper({
         四隅の丸を名刺の角に合わせてください。まっすぐに補正して切り抜きます。
       </p>
 
-      <div className="relative select-none overflow-hidden rounded-2xl border border-white/10">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          ref={imgRef}
-          src={url}
-          alt="撮影した名刺"
-          draggable={false}
-          onLoad={handleLoad}
-          className="block w-full touch-none"
-        />
-        {quad && (
-          <>
-            <svg
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              className="pointer-events-none absolute inset-0 h-full w-full"
-            >
-              <polygon
-                points={polygonPoints}
-                fill="rgba(56,189,248,0.15)"
-                stroke="rgb(56,189,248)"
-                strokeWidth="0.6"
-                vectorEffect="non-scaling-stroke"
-              />
-            </svg>
-            {corners.map((point, index) => (
-              <button
-                key={CORNER_KEYS[index]}
-                type="button"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  dragIndex.current = index;
-                }}
-                style={{
-                  left: `${point.x * 100}%`,
-                  top: `${point.y * 100}%`,
-                  touchAction: "none",
-                }}
-                className="absolute z-10 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-sky-400 bg-sky-400/30 backdrop-blur-sm active:bg-sky-400/60"
-                aria-label="角を調整"
-              />
-            ))}
-          </>
-        )}
+      {/* 画像の周囲に余白を設け、端の角ハンドルもはみ出さずタップできるようにする */}
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-7">
+        <div className="relative select-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            ref={imgRef}
+            src={url}
+            alt="撮影した名刺"
+            draggable={false}
+            onLoad={handleLoad}
+            className="block w-full touch-none rounded-lg"
+          />
+          {quad && (
+            <>
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                className="pointer-events-none absolute inset-0 h-full w-full"
+              >
+                <polygon
+                  points={polygonPoints}
+                  fill="rgba(56,189,248,0.15)"
+                  stroke="rgb(56,189,248)"
+                  strokeWidth="0.6"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+              {corners.map((point, index) => (
+                <button
+                  key={CORNER_KEYS[index]}
+                  type="button"
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    dragIndex.current = index;
+                  }}
+                  style={{
+                    left: `${point.x * 100}%`,
+                    top: `${point.y * 100}%`,
+                    touchAction: "none",
+                  }}
+                  className="absolute z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+                  aria-label="角を調整"
+                >
+                  <span className="h-6 w-6 rounded-full border-2 border-sky-400 bg-sky-400/40 backdrop-blur-sm" />
+                </button>
+              ))}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="mt-6 grid gap-3">
