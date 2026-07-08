@@ -1,8 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { User } from "firebase/auth";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import {
   Camera,
   Check,
@@ -11,7 +9,6 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { db } from "@/lib/firebase";
 import { enhanceCardImage, fileToDataUrl } from "@/lib/cardImageEnhance";
 import { compressImageToWebP } from "@/lib/imageCompression";
 import {
@@ -20,11 +17,12 @@ import {
   normalizeScannedFields,
   type ScannedCard,
 } from "@/lib/scannedCard";
+import { addScannedCard } from "@/lib/scannedStore";
 
 type Step = "capture" | "processing" | "review" | "saving" | "done";
 
 type FieldConfig = {
-  key: keyof Omit<ScannedCard, "id" | "imageUrl" | "imagePath" | "createdAt">;
+  key: keyof Omit<ScannedCard, "id" | "image" | "createdAt">;
   label: string;
   type?: string;
   full?: boolean;
@@ -43,11 +41,11 @@ const FIELDS: FieldConfig[] = [
 ];
 
 export default function ScanCardFlow({
-  user,
+  slug,
   onClose,
   onSaved,
 }: {
-  user: User;
+  slug: string;
   onClose: () => void;
   onSaved?: () => void;
 }) {
@@ -57,14 +55,14 @@ export default function ScanCardFlow({
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageBlob, setImageBlob] = useState<Blob | null>(null);
   const [fields, setFields] = useState<ScannedCard>({ ...EMPTY_SCANNED_CARD });
   const [savedCard, setSavedCard] = useState<ScannedCard | null>(null);
 
   const resetForNext = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl("");
-    setImageFile(null);
+    setImageBlob(null);
     setFields({ ...EMPTY_SCANNED_CARD });
     setError("");
     setWarning("");
@@ -85,20 +83,16 @@ export default function ScanCardFlow({
         maxWidth: 1600,
         maxHeight: 1600,
       });
-      setImageFile(compressed);
+      setImageBlob(compressed);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(URL.createObjectURL(compressed));
 
       setProcessingLabel("AIが文字を読み取っています…");
       const dataUrl = await fileToDataUrl(compressed);
-      const token = await user.getIdToken();
       const response = await fetch("/api/ocr-card", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ imageDataUrl: dataUrl }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageDataUrl: dataUrl, slug }),
       });
       const data = (await response.json()) as {
         fields?: unknown;
@@ -125,38 +119,23 @@ export default function ScanCardFlow({
   };
 
   const handleSave = async () => {
-    if (!imageFile) return;
+    if (!imageBlob) return;
     setError("");
     setStep("saving");
     try {
-      const token = await user.getIdToken();
-      const formData = new FormData();
-      formData.append("image", imageFile);
-      const response = await fetch("/api/scan-upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+      const saved = await addScannedCard({
+        name: fields.name,
+        company: fields.company,
+        department: fields.department,
+        title: fields.title,
+        phone: fields.phone,
+        email: fields.email,
+        website: fields.website,
+        address: fields.address,
+        memo: fields.memo,
+        image: imageBlob,
       });
-      const data = (await response.json()) as {
-        imageUrl?: string;
-        imagePath?: string;
-        error?: string;
-      };
-      if (!response.ok || !data.imageUrl) {
-        throw new Error(data.error || "画像を保存できませんでした。");
-      }
-
-      const record: ScannedCard = {
-        ...fields,
-        imageUrl: data.imageUrl,
-        imagePath: data.imagePath || "",
-      };
-      await addDoc(collection(db, "xenocardUsers", user.uid, "scannedCards"), {
-        ...record,
-        createdAt: serverTimestamp(),
-      });
-
-      setSavedCard(record);
+      setSavedCard(saved);
       setStep("done");
       onSaved?.();
     } catch (caught) {
@@ -204,6 +183,9 @@ export default function ScanCardFlow({
             <p className="mt-2 text-sm text-white/50">
               明るい場所で、名刺全体が画面に入るように撮ってください。
               反射を抑えて自動で見やすく補正します。
+            </p>
+            <p className="mt-2 text-xs text-white/30">
+              取り込んだ名刺はこの端末内にのみ保存されます。
             </p>
             {error && (
               <p className="mt-4 rounded-xl bg-red-500/15 px-4 py-3 text-sm text-red-200">

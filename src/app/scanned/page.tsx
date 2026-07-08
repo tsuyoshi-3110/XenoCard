@@ -1,84 +1,81 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-} from "firebase/firestore";
 import { ArrowLeft, ScanLine, Trash2, UserPlus, X } from "lucide-react";
-import { useAuth } from "@/components/auth/AuthProvider";
 import ScanCardFlow from "@/components/scanned/ScanCardFlow";
-import { db } from "@/lib/firebase";
 import { downloadVCard, type ScannedCard } from "@/lib/scannedCard";
+import {
+  deleteScannedCard,
+  listScannedCards,
+} from "@/lib/scannedStore";
 
 export default function ScannedListPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
   const [cards, setCards] = useState<ScannedCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<ScannedCard | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [scanSlug, setScanSlug] = useState("");
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/login?next=/scanned");
+    try {
+      setScanSlug(window.localStorage.getItem("xenocard:lastSlug") || "");
+    } catch {
+      setScanSlug("");
     }
-  }, [authLoading, router, user]);
+  }, []);
+
+  const reload = useCallback(async () => {
+    try {
+      setCards(await listScannedCards());
+    } catch {
+      setCards([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!user) return;
-    const q = query(
-      collection(db, "xenocardUsers", user.uid, "scannedCards"),
-      orderBy("createdAt", "desc"),
-    );
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        setCards(
-          snapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...(docSnap.data() as Omit<ScannedCard, "id">),
-          })),
-        );
-        setLoading(false);
-      },
-      () => setLoading(false),
-    );
-    return () => unsubscribe();
-  }, [user]);
+    void reload();
+  }, [reload]);
+
+  // 画像BlobのObjectURLを生成し、変更時に破棄する
+  const imageUrls = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const card of cards) {
+      if (card.id && card.image) {
+        map.set(card.id, URL.createObjectURL(card.image));
+      }
+    }
+    return map;
+  }, [cards]);
+
+  useEffect(() => {
+    return () => {
+      imageUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [imageUrls]);
+
+  const selected = cards.find((card) => card.id === selectedId) || null;
 
   const handleDelete = async (card: ScannedCard) => {
-    if (!user || !card.id) return;
+    if (!card.id) return;
     if (!window.confirm("この名刺を削除しますか？")) return;
-    setDeletingId(card.id);
+    setDeleting(true);
     try {
-      await deleteDoc(doc(db, "xenocardUsers", user.uid, "scannedCards", card.id));
-      if (card.imagePath) {
-        const token = await user.getIdToken();
-        await fetch("/api/scan-upload", {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ imagePath: card.imagePath }),
-        });
-      }
-      setSelected(null);
+      await deleteScannedCard(card.id);
+      setSelectedId(null);
+      await reload();
     } catch {
       window.alert("削除に失敗しました。");
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
 
-  if (authLoading || (loading && user)) {
+  if (loading) {
     return (
       <main className="grid min-h-[100dvh] place-items-center bg-[#0d0d0d] text-sm text-white/60">
         読み込んでいます…
@@ -89,7 +86,7 @@ export default function ScannedListPage() {
   return (
     <main className="min-h-[100dvh] bg-[#0d0d0d] text-white">
       <div className="mx-auto max-w-xl px-5 pb-28 pt-6">
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-2 flex items-center gap-3">
           <button
             type="button"
             onClick={() => router.back()}
@@ -101,6 +98,9 @@ export default function ScannedListPage() {
           <h1 className="text-lg font-semibold">取り込んだ名刺</h1>
           <span className="ml-auto text-sm text-white/40">{cards.length}件</span>
         </div>
+        <p className="mb-6 pl-9 text-xs text-white/30">
+          この端末内にのみ保存されています。
+        </p>
 
         {cards.length === 0 ? (
           <div className="mt-20 text-center text-sm text-white/50">
@@ -112,13 +112,13 @@ export default function ScannedListPage() {
               <button
                 key={card.id}
                 type="button"
-                onClick={() => setSelected(card)}
+                onClick={() => setSelectedId(card.id ?? null)}
                 className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 text-left transition hover:border-white/25"
               >
-                {card.imageUrl && (
+                {card.id && imageUrls.get(card.id) && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={card.imageUrl}
+                    src={imageUrls.get(card.id)}
                     alt={card.name || "名刺"}
                     className="aspect-[16/10] w-full object-cover"
                   />
@@ -150,22 +150,22 @@ export default function ScannedListPage() {
         <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setSelected(null)}
+            onClick={() => setSelectedId(null)}
           />
           <div className="relative z-10 max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[#161616] p-6 sm:rounded-3xl">
             <button
               type="button"
-              onClick={() => setSelected(null)}
+              onClick={() => setSelectedId(null)}
               className="absolute right-4 top-4 rounded-full p-1.5 text-white/50 hover:bg-white/10 hover:text-white"
               aria-label="閉じる"
             >
               <X className="h-5 w-5" />
             </button>
 
-            {selected.imageUrl && (
+            {selected.id && imageUrls.get(selected.id) && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={selected.imageUrl}
+                src={imageUrls.get(selected.id)}
                 alt={selected.name || "名刺"}
                 className="mb-5 w-full rounded-2xl border border-white/10 object-contain"
               />
@@ -204,7 +204,7 @@ export default function ScannedListPage() {
               <button
                 type="button"
                 onClick={() => void handleDelete(selected)}
-                disabled={deletingId === selected.id}
+                disabled={deleting}
                 className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-500/30 text-sm font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" />
@@ -215,8 +215,12 @@ export default function ScannedListPage() {
         </div>
       )}
 
-      {scanOpen && user && (
-        <ScanCardFlow user={user} onClose={() => setScanOpen(false)} />
+      {scanOpen && (
+        <ScanCardFlow
+          slug={scanSlug}
+          onClose={() => setScanOpen(false)}
+          onSaved={() => void reload()}
+        />
       )}
     </main>
   );

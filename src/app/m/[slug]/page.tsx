@@ -7,7 +7,6 @@ import { doc, getDoc } from "firebase/firestore";
 import QRCode from "qrcode";
 import { CreditCard, Images, QrCode, ScanLine, Share2, X } from "lucide-react";
 import { type BusinessCard } from "@/lib/businessCard";
-import { useAuth } from "@/components/auth/AuthProvider";
 import ScanCardFlow from "@/components/scanned/ScanCardFlow";
 import { db } from "@/lib/firebase";
 
@@ -22,27 +21,16 @@ export default function MemberPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
 
-  const { user } = useAuth();
-  const [isOwner, setIsOwner] = useState(false);
-
+  // 名刺一覧ページからの取り込みでもslug検証を通せるよう端末に記憶する
   useEffect(() => {
-    if (!user || !slug) {
-      setIsOwner(false);
-      return;
+    if (slug) {
+      try {
+        window.localStorage.setItem("xenocard:lastSlug", slug);
+      } catch {
+        /* localStorage不可の環境は無視 */
+      }
     }
-    let active = true;
-    void getDoc(doc(db, "xenocardUsers", user.uid))
-      .then((snapshot) => {
-        if (!active) return;
-        setIsOwner(snapshot.data()?.cardSlug === slug);
-      })
-      .catch(() => {
-        if (active) setIsOwner(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [user, slug]);
+  }, [slug]);
 
   useEffect(() => {
     if (!slug) return;
@@ -149,31 +137,30 @@ export default function MemberPage() {
             この名刺を共有
           </button>
 
-          {isOwner && (
-            <>
-              <div className="my-1 h-px bg-white/10" />
-              <button
-                type="button"
-                onClick={() => setScanOpen(true)}
-                className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-white/10 text-base font-semibold text-white transition hover:bg-white/15"
-              >
-                <ScanLine className="h-5 w-5" />
-                新たに名刺を取り込む
-              </button>
-              <Link
-                href="/scanned"
-                className="flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-white/15 text-base font-semibold text-white/80 transition hover:bg-white/8"
-              >
-                <Images className="h-5 w-5" />
-                取り込んだ名刺一覧
-              </Link>
-            </>
-          )}
+          <div className="my-1 h-px bg-white/10" />
+          <button
+            type="button"
+            onClick={() => setScanOpen(true)}
+            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-white/10 text-base font-semibold text-white transition hover:bg-white/15"
+          >
+            <ScanLine className="h-5 w-5" />
+            新たに名刺を取り込む
+          </button>
+          <Link
+            href="/scanned"
+            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-white/15 text-base font-semibold text-white/80 transition hover:bg-white/8"
+          >
+            <Images className="h-5 w-5" />
+            取り込んだ名刺一覧
+          </Link>
         </div>
       </div>
 
-      {scanOpen && user && (
-        <ScanCardFlow user={user} onClose={() => setScanOpen(false)} />
+      {scanOpen && (
+        <ScanCardFlow
+          slug={card.slug || slug}
+          onClose={() => setScanOpen(false)}
+        />
       )}
 
       {/* QRモーダル */}

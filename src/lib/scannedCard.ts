@@ -1,4 +1,5 @@
-// 取り込んだ（スキャンした）他社名刺のデータモデルとユーティリティ
+// 取り込んだ（スキャンした）他社名刺のデータモデルとユーティリティ。
+// 保存はこの端末内(IndexedDB)。認証アカウント不要。
 export type ScannedCard = {
   id?: string;
   name: string;
@@ -10,9 +11,8 @@ export type ScannedCard = {
   website: string;
   address: string;
   memo: string;
-  imageUrl: string;
-  imagePath?: string;
-  createdAt?: unknown;
+  image?: Blob; // 補正済みの名刺画像(端末内保存)
+  createdAt?: number;
 };
 
 export const EMPTY_SCANNED_CARD: ScannedCard = {
@@ -25,11 +25,12 @@ export const EMPTY_SCANNED_CARD: ScannedCard = {
   website: "",
   address: "",
   memo: "",
-  imageUrl: "",
 };
 
-// AI(OCR)の抽出結果を安全にScannedCardへ正規化する
-export function normalizeScannedFields(raw: unknown): Omit<ScannedCard, "imageUrl"> {
+// AI(OCR)の抽出結果を安全にScannedCardの文字項目へ正規化する
+export function normalizeScannedFields(
+  raw: unknown,
+): Omit<ScannedCard, "id" | "image" | "createdAt"> {
   const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const pick = (key: string): string => {
     const value = source[key];
