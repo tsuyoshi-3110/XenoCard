@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
@@ -20,6 +20,8 @@ export default function MemberPage() {
   const [qrOpen, setQrOpen] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
+  const [scanFile, setScanFile] = useState<File | null>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
 
   // 名刺一覧ページからの取り込みでもslug検証を通せるよう端末に記憶する
   useEffect(() => {
@@ -138,13 +140,27 @@ export default function MemberPage() {
           </button>
 
           <div className="my-1 h-px bg-white/10" />
+          <input
+            ref={scanInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                setScanFile(file);
+                setScanOpen(true);
+              }
+            }}
+          />
           <button
             type="button"
-            onClick={() => setScanOpen(true)}
+            onClick={() => scanInputRef.current?.click()}
             className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-white/10 text-base font-semibold text-white transition hover:bg-white/15"
           >
             <ScanLine className="h-5 w-5" />
-            新たに名刺を取り込む
+            名刺を取り込む
           </button>
           <Link
             href="/scanned"
@@ -159,7 +175,12 @@ export default function MemberPage() {
       {scanOpen && (
         <ScanCardFlow
           slug={card.slug || slug}
-          onClose={() => setScanOpen(false)}
+          initialFile={scanFile}
+          onClose={() => {
+            setScanOpen(false);
+            setScanFile(null);
+            if (scanInputRef.current) scanInputRef.current.value = "";
+          }}
         />
       )}
 

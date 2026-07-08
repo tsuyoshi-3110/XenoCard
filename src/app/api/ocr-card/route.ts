@@ -64,6 +64,12 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (imageDataUrl.length > 6 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "画像サイズが大きすぎます。" },
+        { status: 413 },
+      );
+    }
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -73,42 +79,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const openai = new OpenAI({ apiKey });
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "この名刺画像から連絡先情報を抽出してJSONで返してください。",
-            },
-            {
-              type: "image_url",
-              image_url: { url: imageDataUrl, detail: "high" },
-            },
-          ],
-        },
-      ],
-    });
+    // タイムアウト・SDK自動リトライを設定して安定化
+    const openai = new OpenAI({ apiKey, timeout: 45_000, maxRetries: 1 });
 
-    const content = completion.choices[0]?.message?.content || "{}";
-    let fields: Record<string, unknown> = {};
+    const extract = async (model: string): Promise<Record<string, unknown>> => {
+      const completion = await openai.chat.completions.create({
+        model,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "この名刺画像から連絡先情報を抽出してJSONで返してください。",
+              },
+              {
+                type: "image_url",
+                image_url: { url: imageDataUrl, detail: "high" },
+              },
+            ],
+          },
+        ],
+      });
+      const content = completion.choices[0]?.message?.content || "";
+      return JSON.parse(content) as Record<string, unknown>;
+    };
+
+    let fields: Record<string, unknown>;
     try {
-      fields = JSON.parse(content) as Record<string, unknown>;
-    } catch {
-      fields = {};
+      fields = await extract("gpt-4o");
+    } catch (primaryError) {
+      // 一時障害に備えて軽量モデルへ自動フォールバック
+      console.warn(
+        "gpt-4o OCR failed, falling back to gpt-4o-mini:",
+        primaryError instanceof Error ? primaryError.message : primaryError,
+      );
+      fields = await extract("gpt-4o-mini");
     }
 
     return NextResponse.json({ fields });
   } catch (error) {
     console.error("Business card OCR failed:", error);
+    const status = (error as { status?: number } | null)?.status;
     const message =
       error instanceof Error ? error.message : "名刺の読み取りに失敗しました。";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: status ? `${message}（コード${status}）` : message },
+      { status: 500 },
+    );
   }
 }

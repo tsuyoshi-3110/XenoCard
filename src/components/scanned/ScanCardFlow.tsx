@@ -5,6 +5,7 @@ import {
   Camera,
   Check,
   Loader2,
+  RefreshCw,
   RotateCcw,
   UserPlus,
   X,
@@ -43,21 +44,23 @@ const FIELDS: FieldConfig[] = [
 
 export default function ScanCardFlow({
   slug,
+  initialFile,
   onClose,
   onSaved,
 }: {
   slug: string;
+  initialFile?: File | null;
   onClose: () => void;
   onSaved?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [step, setStep] = useState<Step>("capture");
+  const [step, setStep] = useState<Step>(initialFile ? "crop" : "capture");
   const [processingLabel, setProcessingLabel] = useState("");
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
-  const [rawFile, setRawFile] = useState<File | null>(null);
+  const [rawFile, setRawFile] = useState<File | null>(initialFile ?? null);
   const [fields, setFields] = useState<ScannedCard>({ ...EMPTY_SCANNED_CARD });
   const [savedCard, setSavedCard] = useState<ScannedCard | null>(null);
 
@@ -74,15 +77,88 @@ export default function ScanCardFlow({
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  // 切り抜き後の画像を補正→OCR→確認へ
+  // 「続けて取り込む」等からカメラを即起動(ユーザー操作の直下で呼ぶこと)
+  const captureAgain = () => {
+    resetForNext();
+    inputRef.current?.click();
+  };
+
+  // AI読み取り。通信用にさらに縮小し、タイムアウト付きで呼ぶ。
+  // 失敗しても例外を投げず結果オブジェクトで返す(写真を失わないため)。
+  const runOcr = async (
+    image: Blob,
+  ): Promise<
+    | { ok: true; fields: ReturnType<typeof normalizeScannedFields> }
+    | { ok: false; message: string }
+  > => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 75_000);
+    try {
+      const ocrFile = await compressImageToWebP(
+        new File([image], "ocr.webp", { type: image.type || "image/webp" }),
+        { maxBytes: 900 * 1024, maxWidth: 1280, maxHeight: 1280 },
+      );
+      const dataUrl = await fileToDataUrl(ocrFile);
+      const response = await fetch("/api/ocr-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageDataUrl: dataUrl, slug }),
+        signal: controller.signal,
+      });
+      const data = (await response
+        .json()
+        .catch(() => ({}))) as { fields?: unknown; error?: string };
+      if (!response.ok) {
+        return {
+          ok: false,
+          message: data.error || `サーバーエラー（${response.status}）`,
+        };
+      }
+      return { ok: true, fields: normalizeScannedFields(data.fields) };
+    } catch (caught) {
+      const aborted = caught instanceof DOMException && caught.name === "AbortError";
+      return {
+        ok: false,
+        message: aborted
+          ? "時間切れになりました"
+          : "通信に失敗しました。電波状況をご確認ください",
+      };
+    } finally {
+      window.clearTimeout(timer);
+    }
+  };
+
+  // OCR結果を画面へ反映(全項目空なら注意を表示)
+  const applyOcrResult = (
+    result: Awaited<ReturnType<typeof runOcr>>,
+  ) => {
+    if (result.ok) {
+      setFields({ ...EMPTY_SCANNED_CARD, ...result.fields });
+      const allEmpty = Object.values(result.fields).every((v) => !v);
+      setWarning(
+        allEmpty
+          ? "文字を読み取れませんでした。「AIで再読み取り」か手入力をお試しください。"
+          : "",
+      );
+    } else {
+      setWarning(
+        `自動読み取りに失敗しました（${result.message}）。「AIで再読み取り」か手入力で登録できます。`,
+      );
+    }
+  };
+
+  // 切り抜き後の画像を補正→OCR→確認へ。
+  // OCRに失敗しても写真は保持したまま確認画面へ進む。
   const handleCropped = async (file: File) => {
     setError("");
     setWarning("");
     setStep("processing");
+
+    let compressed: File;
     try {
       setProcessingLabel("画像を補正しています…");
       const enhanced = await enhanceCardImage(file);
-      const compressed = await compressImageToWebP(enhanced, {
+      compressed = await compressImageToWebP(enhanced, {
         maxBytes: 1.4 * 1024 * 1024,
         maxWidth: 1600,
         maxHeight: 1600,
@@ -90,35 +166,30 @@ export default function ScanCardFlow({
       setImageBlob(compressed);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(URL.createObjectURL(compressed));
-
-      setProcessingLabel("AIが文字を読み取っています…");
-      const dataUrl = await fileToDataUrl(compressed);
-      const response = await fetch("/api/ocr-card", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl: dataUrl, slug }),
-      });
-      const data = (await response.json()) as {
-        fields?: unknown;
-        error?: string;
-      };
-      if (!response.ok) {
-        setWarning(
-          data.error
-            ? `自動読み取りに失敗しました（${data.error}）。手入力で登録できます。`
-            : "自動読み取りに失敗しました。手入力で登録できます。",
-        );
-        setFields({ ...EMPTY_SCANNED_CARD });
-      } else {
-        const normalized = normalizeScannedFields(data.fields);
-        setFields({ ...EMPTY_SCANNED_CARD, ...normalized });
-      }
-      setStep("review");
     } catch (caught) {
+      // 画像処理自体の失敗のみ撮り直しへ戻す
       setError(
         caught instanceof Error ? caught.message : "画像を処理できませんでした。",
       );
       setStep("capture");
+      return;
+    }
+
+    setProcessingLabel("AIが文字を読み取っています…");
+    applyOcrResult(await runOcr(compressed));
+    setStep("review");
+  };
+
+  // 確認画面から同じ画像でAI読み取りをやり直す
+  const [ocrRetrying, setOcrRetrying] = useState(false);
+  const retryOcr = async () => {
+    if (!imageBlob || ocrRetrying) return;
+    setOcrRetrying(true);
+    setWarning("");
+    try {
+      applyOcrResult(await runOcr(imageBlob));
+    } finally {
+      setOcrRetrying(false);
     }
   };
 
@@ -293,6 +364,19 @@ export default function ScanCardFlow({
               </button>
               <button
                 type="button"
+                onClick={() => void retryOcr()}
+                disabled={ocrRetrying}
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 text-sm font-semibold text-white/70 transition hover:bg-white/8 disabled:opacity-50"
+              >
+                {ocrRetrying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                AIで再読み取り
+              </button>
+              <button
+                type="button"
                 onClick={resetForNext}
                 className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 text-sm font-semibold text-white/70 transition hover:bg-white/8"
               >
@@ -330,7 +414,7 @@ export default function ScanCardFlow({
               </button>
               <button
                 type="button"
-                onClick={resetForNext}
+                onClick={captureAgain}
                 className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 text-sm font-semibold text-white/70 transition hover:bg-white/8"
               >
                 <Camera className="h-4 w-4" />

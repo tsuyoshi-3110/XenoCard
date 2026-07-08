@@ -29,8 +29,10 @@ export default function ScannedListPage() {
   const [query, setQuery] = useState("");
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
+  const [scanFile, setScanFile] = useState<File | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [scanSlug, setScanSlug] = useState("");
+  const scanInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     try {
@@ -181,10 +183,24 @@ export default function ScannedListPage() {
         )}
       </div>
 
-      {/* 取り込むボタン(固定) */}
+      {/* 取り込むボタン(固定) — タップで即カメラ起動 */}
+      <input
+        ref={scanInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            setScanFile(file);
+            setScanOpen(true);
+          }
+        }}
+      />
       <button
         type="button"
-        onClick={() => setScanOpen(true)}
+        onClick={() => scanInputRef.current?.click()}
         className="fixed bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-black shadow-lg transition hover:bg-stone-100"
       >
         <ScanLine className="h-5 w-5" />
@@ -207,7 +223,12 @@ export default function ScannedListPage() {
       {scanOpen && (
         <ScanCardFlow
           slug={scanSlug}
-          onClose={() => setScanOpen(false)}
+          initialFile={scanFile}
+          onClose={() => {
+            setScanOpen(false);
+            setScanFile(null);
+            if (scanInputRef.current) scanInputRef.current.value = "";
+          }}
           onSaved={() => void reload()}
         />
       )}
