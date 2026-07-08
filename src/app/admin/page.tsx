@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -17,7 +18,7 @@ import {
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { AsYouType } from "libphonenumber-js";
-import { Bot, Check, ChevronDown, ChevronUp, Copy, Eye, Plus, Save, Share2, Sparkles, Trash2, UserRound, WandSparkles, X } from "lucide-react";
+import { Bot, Check, ChevronDown, ChevronUp, Copy, Eye, Images, Plus, Save, Share2, Sparkles, Trash2, UserRound, WandSparkles, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { auth, db } from "@/lib/firebase";
 import {
@@ -207,6 +208,7 @@ export default function AdminPage() {
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [copiedMsgSlug, setCopiedMsgSlug] = useState<string | null>(null);
   const [copyPopSlug, setCopyPopSlug] = useState<string | null>(null);
+  const [copiedOwnerSlug, setCopiedOwnerSlug] = useState<string | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
   const getCardUrl = (slug: string) =>
@@ -249,6 +251,61 @@ export default function AdminPage() {
       document.body.appendChild(el); el.select();
       document.execCommand("copy"); document.body.removeChild(el);
       doCopy();
+    }
+  };
+
+  // 本人用リンク(名刺取り込み用トークン付き)を発行してコピー
+  const handleCopyOwnerLink = (slug: string) => {
+    const fetchLink = async (): Promise<string> => {
+      const idToken = await user?.getIdToken();
+      if (!idToken) throw new Error("ログイン情報を確認できませんでした。");
+      const response = await fetch("/api/scans/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ slug }),
+      });
+      const json = (await response.json().catch(() => ({}))) as {
+        token?: string;
+        error?: string;
+      };
+      if (!response.ok || !json.token) {
+        throw new Error(json.error || "リンクを発行できませんでした。");
+      }
+      return `${getCardUrl(slug)}#k=${json.token}`;
+    };
+    const done = () => {
+      setCopiedOwnerSlug(slug);
+      setTimeout(() => setCopiedOwnerSlug(null), 1200);
+    };
+    // iOS Safariはfetch後のクリップボード操作を拒否するためClipboardItem(Promise)を優先
+    if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+      const item = new ClipboardItem({
+        "text/plain": fetchLink().then(
+          (link) => new Blob([link], { type: "text/plain" }),
+        ),
+      });
+      void navigator.clipboard
+        .write([item])
+        .then(done)
+        .catch(async () => {
+          try {
+            const link = await fetchLink();
+            await navigator.clipboard.writeText(link);
+            done();
+          } catch (err) {
+            alert(errorMessage(err));
+          }
+        });
+    } else {
+      void fetchLink()
+        .then(async (link) => {
+          await navigator.clipboard.writeText(link);
+          done();
+        })
+        .catch((err) => alert(errorMessage(err)));
     }
   };
 
@@ -697,7 +754,36 @@ export default function AdminPage() {
     if (!groupId) return;
     if (!window.confirm(`「${m.displayName || m.email}」を削除しますか？`)) return;
 
+    // 取り込んだ名刺データの扱いを確認
+    let scanAction: "delete" | "inherit" = "inherit";
+    if (m.cardSlug) {
+      scanAction = window.confirm(
+        "このメンバーが取り込んだ名刺データも削除しますか？\n\nOK：画像・情報を完全に削除\nキャンセル：管理者に引き継いで残す（管理画面の「取り込んだ名刺」で閲覧可）",
+      )
+        ? "delete"
+        : "inherit";
+    }
+
     try {
+      // 取り込んだ名刺の削除/引き継ぎ(本人用リンクは無効化される)
+      if (m.cardSlug) {
+        try {
+          const idToken = await user?.getIdToken();
+          if (idToken) {
+            await fetch("/api/scans/member", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${idToken}`,
+              },
+              body: JSON.stringify({ slug: m.cardSlug, action: scanAction }),
+            });
+          }
+        } catch {
+          /* スキャン処理の失敗はメンバー削除を妨げない */
+        }
+      }
+
       const cardsSnap = await getDocs(
         collection(db, "xenocardGroups", groupId, "members", m.uid, "cards"),
       );
@@ -1199,16 +1285,25 @@ export default function AdminPage() {
 
         {/* ── メンバー一覧 ── */}
         <section className="rounded-2xl border border-black/8 bg-white p-4 sm:p-6 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-black">メンバー一覧</h2>
-            <button
-              type="button"
-              onClick={() => { setShowAddForm((v) => !v); setAddError(""); }}
-              className="flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-black"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              メンバー追加
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/admin/scans"
+                className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-stone-100"
+              >
+                <Images className="h-3.5 w-3.5" />
+                名刺一覧
+              </Link>
+              <button
+                type="button"
+                onClick={() => { setShowAddForm((v) => !v); setAddError(""); }}
+                className="flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-black"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                メンバー追加
+              </button>
+            </div>
           </div>
 
           {/* 追加フォーム */}
@@ -1380,6 +1475,23 @@ export default function AdminPage() {
                                     </p>
                                   </div>
                                   {copiedMsgSlug === m.cardSlug
+                                    ? <Check className="h-4 w-4 shrink-0 text-green-600" />
+                                    : <Copy className="h-4 w-4 shrink-0 text-black/40" />}
+                                </button>
+
+                                {/* ③ 本人用リンク(名刺取り込み) */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyOwnerLink(m.cardSlug)}
+                                  className="mt-1.5 flex w-full items-center justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-left transition hover:bg-amber-100"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] font-semibold text-amber-700">③ 本人用リンクをコピー（名刺取り込み用）</p>
+                                    <p className="line-clamp-2 text-xs text-black/70">
+                                      本人だけに渡す専用リンク。開くと取り込んだ名刺がサーバー保存になり、端末が変わっても引き継げます。
+                                    </p>
+                                  </div>
+                                  {copiedOwnerSlug === m.cardSlug
                                     ? <Check className="h-4 w-4 shrink-0 text-green-600" />
                                     : <Copy className="h-4 w-4 shrink-0 text-black/40" />}
                                 </button>

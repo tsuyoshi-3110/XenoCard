@@ -8,6 +8,7 @@ import QRCode from "qrcode";
 import { CreditCard, Images, QrCode, ScanLine, Share2, X } from "lucide-react";
 import { type BusinessCard } from "@/lib/businessCard";
 import ScanCardFlow from "@/components/scanned/ScanCardFlow";
+import { saveScanCredential } from "@/lib/scannedRemote";
 import { db } from "@/lib/firebase";
 
 export default function MemberPage() {
@@ -23,7 +24,7 @@ export default function MemberPage() {
   const [scanFile, setScanFile] = useState<File | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
-  // 名刺一覧ページからの取り込みでもslug検証を通せるよう端末に記憶する
+  // 名刺一覧ページからの取り込みでも使えるようslugを端末に記憶する
   useEffect(() => {
     if (slug) {
       try {
@@ -31,6 +32,16 @@ export default function MemberPage() {
       } catch {
         /* localStorage不可の環境は無視 */
       }
+    }
+  }, [slug]);
+
+  // 本人用リンク(#k=トークン)で開かれたらトークンを端末に保存しURLから消す
+  useEffect(() => {
+    if (!slug) return;
+    const match = window.location.hash.match(/^#k=([A-Za-z0-9]+)/);
+    if (match) {
+      saveScanCredential({ slug, token: match[1] });
+      window.history.replaceState(null, "", window.location.pathname);
     }
   }, [slug]);
 
