@@ -25,7 +25,10 @@ import CardCropper from "@/components/scanned/CardCropper";
 type Step = "capture" | "crop" | "processing" | "review" | "saving" | "done";
 
 type FieldConfig = {
-  key: keyof Omit<ScannedCard, "id" | "image" | "createdAt">;
+  key: keyof Omit<
+    ScannedCard,
+    "id" | "image" | "imageUrl" | "imageBack" | "imageBackUrl" | "createdAt"
+  >;
   label: string;
   type?: string;
   full?: boolean;
@@ -65,11 +68,26 @@ export default function ScanCardFlow({
   const [fields, setFields] = useState<ScannedCard>({ ...EMPTY_SCANNED_CARD });
   const [savedCard, setSavedCard] = useState<ScannedCard | null>(null);
 
+  // 裏面(任意)
+  const backInputRef = useRef<HTMLInputElement>(null);
+  const [backRawFile, setBackRawFile] = useState<File | null>(null);
+  const [backBlob, setBackBlob] = useState<Blob | null>(null);
+  const [backPreviewUrl, setBackPreviewUrl] = useState("");
+  const [backProcessing, setBackProcessing] = useState(false);
+
+  const removeBack = () => {
+    if (backPreviewUrl) URL.revokeObjectURL(backPreviewUrl);
+    setBackPreviewUrl("");
+    setBackBlob(null);
+    setBackRawFile(null);
+  };
+
   const resetForNext = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl("");
     setImageBlob(null);
     setRawFile(null);
+    removeBack();
     setFields({ ...EMPTY_SCANNED_CARD });
     setError("");
     setWarning("");
@@ -181,6 +199,27 @@ export default function ScanCardFlow({
     setStep("review");
   };
 
+  // 裏面: 切り抜き後に補正して保持(AI読み取りは行わない)
+  const handleBackCropped = async (file: File) => {
+    setBackRawFile(null);
+    setBackProcessing(true);
+    try {
+      const enhanced = await enhanceCardImage(file);
+      const compressed = await compressImageToWebP(enhanced, {
+        maxBytes: 1.4 * 1024 * 1024,
+        maxWidth: 1600,
+        maxHeight: 1600,
+      });
+      if (backPreviewUrl) URL.revokeObjectURL(backPreviewUrl);
+      setBackBlob(compressed);
+      setBackPreviewUrl(URL.createObjectURL(compressed));
+    } catch {
+      window.alert("裏面画像を処理できませんでした。");
+    } finally {
+      setBackProcessing(false);
+    }
+  };
+
   // 確認画面から同じ画像でAI読み取りをやり直す
   const [ocrRetrying, setOcrRetrying] = useState(false);
   const retryOcr = async () => {
@@ -213,8 +252,12 @@ export default function ScanCardFlow({
       // 本人用リンク登録済みならサーバー(Firestore)へ、無ければこの端末内へ保存
       const cred = loadScanCredential();
       const saved = cred
-        ? await saveRemoteScan(cred, payload, imageBlob)
-        : await addScannedCard({ ...payload, image: imageBlob });
+        ? await saveRemoteScan(cred, payload, imageBlob, backBlob)
+        : await addScannedCard({
+            ...payload,
+            image: imageBlob,
+            imageBack: backBlob ?? undefined,
+          });
       setSavedCard(saved);
       setStep("done");
       onSaved?.();
@@ -266,6 +309,29 @@ export default function ScanCardFlow({
           />
         )}
 
+        {/* 裏面撮影用(任意) */}
+        <input
+          ref={backInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) setBackRawFile(file);
+            event.target.value = "";
+          }}
+        />
+
+        {/* 裏面の切り抜き */}
+        {step === "review" && backRawFile && (
+          <CardCropper
+            file={backRawFile}
+            onConfirm={(cropped) => void handleBackCropped(cropped)}
+            onCancel={() => setBackRawFile(null)}
+          />
+        )}
+
         {step === "capture" && (
           <div className="mx-auto flex max-w-sm flex-col items-center py-10 text-center">
             <div className="mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-white/5">
@@ -310,16 +376,64 @@ export default function ScanCardFlow({
           </div>
         )}
 
-        {step === "review" && (
+        {step === "review" && !backRawFile && (
           <div className="mx-auto max-w-sm">
             {previewUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={previewUrl}
-                alt="名刺プレビュー"
-                className="mb-5 w-full rounded-2xl border border-white/10 object-contain"
+                alt="名刺プレビュー(表面)"
+                className="mb-3 w-full rounded-2xl border border-white/10 object-contain"
               />
             )}
+
+            {/* 裏面(任意) */}
+            <div className="mb-5">
+              {backProcessing ? (
+                <div className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 text-xs text-white/50">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  裏面を処理しています…
+                </div>
+              ) : backBlob && backPreviewUrl ? (
+                <div>
+                  <p className="mb-1.5 text-xs text-white/40">裏面</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={backPreviewUrl}
+                    alt="名刺プレビュー(裏面)"
+                    className="w-full rounded-2xl border border-white/10 object-contain"
+                  />
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => backInputRef.current?.click()}
+                      className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/15 text-xs font-semibold text-white/60 transition hover:bg-white/8"
+                    >
+                      <Camera className="h-3.5 w-3.5" />
+                      裏面を撮り直す
+                    </button>
+                    <button
+                      type="button"
+                      onClick={removeBack}
+                      className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/15 px-3 text-xs font-semibold text-white/60 transition hover:bg-white/8"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      削除
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => backInputRef.current?.click()}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 text-xs font-semibold text-white/50 transition hover:bg-white/5"
+                >
+                  <Camera className="h-4 w-4" />
+                  裏面も保存する（任意）
+                </button>
+              )}
+            </div>
+
             {warning && (
               <p className="mb-4 rounded-xl bg-amber-500/15 px-4 py-3 text-sm text-amber-200">
                 {warning}

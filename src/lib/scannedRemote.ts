@@ -44,11 +44,15 @@ async function parseJson<T>(response: Response): Promise<T & ApiError> {
   return (await response.json().catch(() => ({}))) as T & ApiError;
 }
 
-// 保存(画像+項目を1リクエストで)
+// 保存(画像+項目を1リクエストで。裏面は任意)
 export async function saveRemoteScan(
   cred: ScanCredential,
-  fields: Omit<ScannedCard, "id" | "image" | "imageUrl" | "createdAt">,
+  fields: Omit<
+    ScannedCard,
+    "id" | "image" | "imageUrl" | "imageBack" | "imageBackUrl" | "createdAt"
+  >,
   image: Blob,
+  imageBack?: Blob | null,
 ): Promise<ScannedCard> {
   const formData = new FormData();
   formData.append("slug", cred.slug);
@@ -57,6 +61,14 @@ export async function saveRemoteScan(
     "image",
     new File([image], "scan.webp", { type: image.type || "image/webp" }),
   );
+  if (imageBack) {
+    formData.append(
+      "imageBack",
+      new File([imageBack], "scan-back.webp", {
+        type: imageBack.type || "image/webp",
+      }),
+    );
+  }
   const response = await fetch("/api/scans", {
     method: "POST",
     headers: { "x-scan-token": cred.token },
@@ -111,6 +123,7 @@ export async function migrateLocalScans(cred: ScanCredential): Promise<number> {
           memo: card.memo,
         },
         card.image,
+        card.imageBack,
       );
       await deleteScannedCard(card.id);
       migrated += 1;

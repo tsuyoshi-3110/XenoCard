@@ -11,6 +11,7 @@ import { downloadVCard, type ScannedCard } from "@/lib/scannedCard";
 type AdminScan = ScannedCard & {
   slug?: string;
   inherited?: boolean;
+  imageBackUrl?: string;
 };
 
 function onlyDigits(value: string): string {
@@ -261,8 +262,19 @@ export default function AdminScansPage() {
               <img
                 src={selected.imageUrl}
                 alt={selected.name || "名刺"}
-                className="mb-5 w-full rounded-2xl border border-stone-200 object-contain"
+                className="mb-3 w-full rounded-2xl border border-stone-200 object-contain"
               />
+            )}
+            {selected.imageBackUrl && (
+              <div className="mb-3">
+                <p className="mb-1 text-xs text-black/40">裏面</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selected.imageBackUrl}
+                  alt={`${selected.name || "名刺"}(裏面)`}
+                  className="w-full rounded-2xl border border-stone-200 object-contain"
+                />
+              </div>
             )}
 
             <dl className="grid gap-2.5 text-sm">

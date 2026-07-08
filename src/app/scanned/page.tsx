@@ -90,13 +90,26 @@ export default function ScannedListPage() {
     return map;
   }, [cards]);
 
+  // 裏面(任意)の表示用URL
+  const imageBackUrls = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const card of cards) {
+      if (!card.id) continue;
+      if (card.imageBackUrl) map.set(card.id, card.imageBackUrl);
+      else if (card.imageBack) map.set(card.id, URL.createObjectURL(card.imageBack));
+    }
+    return map;
+  }, [cards]);
+
   useEffect(() => {
     return () => {
-      imageUrls.forEach((url) => {
-        if (url.startsWith("blob:")) URL.revokeObjectURL(url);
-      });
+      [imageUrls, imageBackUrls].forEach((map) =>
+        map.forEach((url) => {
+          if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+        }),
+      );
     };
-  }, [imageUrls]);
+  }, [imageUrls, imageBackUrls]);
 
   const filtered = useMemo(
     () => cards.filter((card) => matchesQuery(card, query)),
@@ -245,6 +258,7 @@ export default function ScannedListPage() {
         <CardViewer
           cards={filtered}
           imageUrls={imageUrls}
+          imageBackUrls={imageBackUrls}
           startIndex={viewerIndex}
           onClose={() => setViewerIndex(null)}
           onAdd={(card) => downloadVCard(card)}
@@ -272,6 +286,7 @@ export default function ScannedListPage() {
 function CardViewer({
   cards,
   imageUrls,
+  imageBackUrls,
   startIndex,
   onClose,
   onAdd,
@@ -280,6 +295,7 @@ function CardViewer({
 }: {
   cards: ScannedCard[];
   imageUrls: Map<string, string>;
+  imageBackUrls: Map<string, string>;
   startIndex: number;
   onClose: () => void;
   onAdd: (card: ScannedCard) => void;
@@ -339,6 +355,17 @@ function CardViewer({
                 alt={card.name || "名刺"}
                 className="mx-auto max-h-[55vh] w-full max-w-md rounded-2xl border border-white/10 object-contain"
               />
+            )}
+            {card.id && imageBackUrls.get(card.id) && (
+              <div className="mx-auto mt-3 w-full max-w-md">
+                <p className="mb-1 text-xs text-white/40">裏面</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageBackUrls.get(card.id)}
+                  alt={`${card.name || "名刺"}(裏面)`}
+                  className="max-h-[55vh] w-full rounded-2xl border border-white/10 object-contain"
+                />
+              </div>
             )}
 
             <div className="mx-auto mt-5 max-w-md text-white">

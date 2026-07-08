@@ -11,8 +11,10 @@ export type ScannedCard = {
   website: string;
   address: string;
   memo: string;
-  image?: Blob; // 補正済みの名刺画像(端末内保存時)
-  imageUrl?: string; // サーバー保存時の画像URL
+  image?: Blob; // 補正済みの名刺画像・表面(端末内保存時)
+  imageUrl?: string; // サーバー保存時の表面画像URL
+  imageBack?: Blob; // 裏面(任意・端末内保存時)
+  imageBackUrl?: string; // サーバー保存時の裏面画像URL(任意)
   createdAt?: number;
 };
 

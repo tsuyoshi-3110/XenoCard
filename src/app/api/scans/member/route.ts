@@ -35,12 +35,18 @@ export async function POST(request: NextRequest) {
     let processed = 0;
 
     for (const docSnap of snap.docs) {
-      const data = docSnap.data() as { adminUid?: string; imagePath?: string };
+      const data = docSnap.data() as {
+        adminUid?: string;
+        imagePath?: string;
+        imageBackPath?: string;
+      };
       if (data.adminUid !== uid) continue; // 他グループのデータは触らない
       if (action === "delete") {
         await docSnap.ref.delete();
-        if (data.imagePath?.startsWith("xenocard/scans/")) {
-          await bucket.file(data.imagePath).delete({ ignoreNotFound: true });
+        for (const path of [data.imagePath, data.imageBackPath]) {
+          if (path?.startsWith("xenocard/scans/")) {
+            await bucket.file(path).delete({ ignoreNotFound: true });
+          }
         }
       } else {
         await docSnap.ref.set({ inherited: true }, { merge: true });

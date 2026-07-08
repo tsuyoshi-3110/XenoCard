@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const slug = pickString(formData.get("slug"), 100);
     const image = formData.get("image");
+    const imageBack = formData.get("imageBack"); // 裏面(任意)
     const fieldsRaw = pickString(formData.get("fields"), 5000);
 
     if (!slug || !(image instanceof File) || !fieldsRaw) {
@@ -83,6 +84,12 @@ export async function POST(request: NextRequest) {
     }
     if (!image.type.startsWith("image/") || image.size > MAX_IMAGE_BYTES) {
       return NextResponse.json({ error: "画像形式またはサイズを確認してください。" }, { status: 400 });
+    }
+    if (
+      imageBack instanceof File &&
+      (!imageBack.type.startsWith("image/") || imageBack.size > MAX_IMAGE_BYTES)
+    ) {
+      return NextResponse.json({ error: "裏面画像の形式またはサイズを確認してください。" }, { status: 400 });
     }
 
     const auth = await authorize(request, slug);
@@ -108,21 +115,29 @@ export async function POST(request: NextRequest) {
     }
 
     // 画像保存
-    const extension = image.type === "image/webp" ? "webp" : "jpg";
-    const imagePath = `xenocard/scans/${slug}/${randomUUID()}.${extension}`;
-    const downloadToken = randomUUID();
     const bucket = adminStorage.bucket();
-    await bucket.file(imagePath).save(Buffer.from(await image.arrayBuffer()), {
-      resumable: false,
-      contentType: image.type,
-      metadata: {
-        cacheControl: "public,max-age=31536000,immutable",
-        metadata: { firebaseStorageDownloadTokens: downloadToken },
-      },
-    });
-    const imageUrl =
-      `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket.name)}` +
-      `/o/${encodeURIComponent(imagePath)}?alt=media&token=${downloadToken}`;
+    const saveImage = async (file: File): Promise<{ url: string; path: string }> => {
+      const extension = file.type === "image/webp" ? "webp" : "jpg";
+      const path = `xenocard/scans/${slug}/${randomUUID()}.${extension}`;
+      const downloadToken = randomUUID();
+      await bucket.file(path).save(Buffer.from(await file.arrayBuffer()), {
+        resumable: false,
+        contentType: file.type,
+        metadata: {
+          cacheControl: "public,max-age=31536000,immutable",
+          metadata: { firebaseStorageDownloadTokens: downloadToken },
+        },
+      });
+      const url =
+        `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket.name)}` +
+        `/o/${encodeURIComponent(path)}?alt=media&token=${downloadToken}`;
+      return { url, path };
+    };
+
+    const front = await saveImage(image);
+    const back = imageBack instanceof File ? await saveImage(imageBack) : null;
+    const imageUrl = front.url;
+    const imagePath = front.path;
 
     const record = {
       slug,
@@ -139,6 +154,8 @@ export async function POST(request: NextRequest) {
       memo: pickString(parsed.memo, 1000),
       imageUrl,
       imagePath,
+      imageBackUrl: back?.url || "",
+      imageBackPath: back?.path || "",
       inherited: false,
       createdAt: Date.now(),
     };
@@ -215,7 +232,12 @@ export async function DELETE(request: NextRequest) {
     const docRef = adminDb.collection(SCANS).doc(id);
     const snap = await docRef.get();
     if (!snap.exists) return NextResponse.json({ ok: true });
-    const data = snap.data() as { slug?: string; groupId?: string; imagePath?: string };
+    const data = snap.data() as {
+      slug?: string;
+      groupId?: string;
+      imagePath?: string;
+      imageBackPath?: string;
+    };
 
     if (auth.mode === "token") {
       if (data.slug !== auth.slug) {
@@ -229,8 +251,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     await docRef.delete();
-    if (data.imagePath?.startsWith("xenocard/scans/")) {
-      await adminStorage.bucket().file(data.imagePath).delete({ ignoreNotFound: true });
+    for (const path of [data.imagePath, data.imageBackPath]) {
+      if (path?.startsWith("xenocard/scans/")) {
+        await adminStorage.bucket().file(path).delete({ ignoreNotFound: true });
+      }
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
