@@ -380,6 +380,7 @@ function CardViewer({
                 {[
                   ["部署", card.department],
                   ["役職", card.title],
+                  ["資格", card.qualifications],
                   ["電話番号", card.phone],
                   ["メール", card.email],
                   ["サイト", card.website],

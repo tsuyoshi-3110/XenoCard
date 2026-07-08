@@ -284,6 +284,7 @@ export default function AdminScansPage() {
                 ["会社名", selected.company],
                 ["部署", selected.department],
                 ["役職", selected.title],
+                ["資格", selected.qualifications],
                 ["電話番号", selected.phone],
                 ["メール", selected.email],
                 ["サイト", selected.website],

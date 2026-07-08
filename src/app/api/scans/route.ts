@@ -147,6 +147,7 @@ export async function POST(request: NextRequest) {
       company: pickString(parsed.company),
       department: pickString(parsed.department),
       title: pickString(parsed.title),
+      qualifications: pickString(parsed.qualifications),
       phone: pickString(parsed.phone),
       email: pickString(parsed.email),
       website: pickString(parsed.website),

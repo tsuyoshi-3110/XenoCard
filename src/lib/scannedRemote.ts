@@ -116,6 +116,7 @@ export async function migrateLocalScans(cred: ScanCredential): Promise<number> {
           company: card.company,
           department: card.department,
           title: card.title,
+          qualifications: card.qualifications || "",
           phone: card.phone,
           email: card.email,
           website: card.website,

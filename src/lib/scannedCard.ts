@@ -6,6 +6,7 @@ export type ScannedCard = {
   company: string;
   department: string;
   title: string;
+  qualifications: string; // 資格(一級建築士 など)。役職とは別管理
   phone: string;
   email: string;
   website: string;
@@ -23,6 +24,7 @@ export const EMPTY_SCANNED_CARD: ScannedCard = {
   company: "",
   department: "",
   title: "",
+  qualifications: "",
   phone: "",
   email: "",
   website: "",
@@ -44,6 +46,7 @@ export function normalizeScannedFields(
     company: pick("company"),
     department: pick("department"),
     title: pick("title"),
+    qualifications: pick("qualifications"),
     phone: pick("phone"),
     email: pick("email"),
     website: pick("website"),
@@ -62,6 +65,14 @@ function escapeVCardValue(value: string): string {
 
 // 取り込んだ名刺から連絡先(vCard)テキストを生成する
 export function buildScannedVCard(card: ScannedCard): string {
+  // 資格はvCardに標準項目が無いためメモ(NOTE)へまとめる
+  const note = [
+    card.qualifications ? `資格: ${card.qualifications}` : "",
+    card.memo || "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   const lines = [
     "BEGIN:VCARD",
     "VERSION:3.0",
@@ -74,7 +85,7 @@ export function buildScannedVCard(card: ScannedCard): string {
     card.email ? `EMAIL:${escapeVCardValue(card.email)}` : "",
     card.website ? `URL:${escapeVCardValue(card.website)}` : "",
     card.address ? `ADR:;;${escapeVCardValue(card.address)};;;;` : "",
-    card.memo ? `NOTE:${escapeVCardValue(card.memo)}` : "",
+    note ? `NOTE:${escapeVCardValue(note)}` : "",
     "END:VCARD",
   ];
   return lines.filter(Boolean).join("\r\n");
