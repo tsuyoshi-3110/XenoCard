@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,10 +9,9 @@ type RequestBody = {
   slug?: string;
 };
 
-// 端末ローカル保存のため認証は無い。乱用対策としてIP単位でレート制限し、
-// 実在する名刺(slug)ページからの呼び出しのみ許可する。
+// 端末ローカル保存のため認証は無い。乱用対策はIP単位のレート制限で行う。
 const requestHistory = new Map<string, number[]>();
-const MAX_REQUESTS_PER_HOUR = 30;
+const MAX_REQUESTS_PER_HOUR = 40;
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for") || "";
@@ -28,12 +26,6 @@ function checkRateLimit(key: string): boolean {
   recent.push(now);
   requestHistory.set(key, recent);
   return true;
-}
-
-async function cardExists(slug: string): Promise<boolean> {
-  if (!/^[a-z0-9-]{1,80}$/.test(slug)) return false;
-  const snapshot = await adminDb.collection("xenocardPublicCards").doc(slug).get();
-  return snapshot.exists;
 }
 
 const SYSTEM_PROMPT = [
@@ -65,14 +57,6 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as RequestBody;
     const imageDataUrl = String(body.imageDataUrl || "");
-    const slug = String(body.slug || "").trim();
-
-    if (!(await cardExists(slug))) {
-      return NextResponse.json(
-        { error: "この名刺ページからのみ利用できます。" },
-        { status: 403 },
-      );
-    }
 
     if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(imageDataUrl)) {
       return NextResponse.json(
