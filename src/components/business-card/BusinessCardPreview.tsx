@@ -143,6 +143,7 @@ export default function BusinessCardPreview({
   const textAreaX = card.textAreaX ?? 8;
   const textAreaBottom = card.textAreaY ?? 7;
   const textAreaWidth = card.textAreaWidth ?? 84;
+  const textAlign = card.textAlign ?? "left";
 
   const onTextPD = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -189,7 +190,7 @@ export default function BusinessCardPreview({
       textAreaX: d.startX,
       textAreaY: d.startBottom,
       textAreaWidth:
-        Math.round(Math.max(20, Math.min(100, d.startWidth + deltaPct)) * 10) / 10,
+        Math.round(Math.max(20, Math.min(150, d.startWidth + deltaPct)) * 10) / 10,
     });
   };
 
@@ -202,8 +203,10 @@ export default function BusinessCardPreview({
   // 文字色が明るい(白文字) → 背景を暗くする従来のオーバーレイ。
   // 文字色が暗い(黒文字) → 明るいデザインなので白系のオーバーレイで読みやすくする。
   const lightText = isLightColor(card.textColor, 0.6);
-  // 明るい背景ではメインカラーの装飾(白線・白アイコン)が見えないため文字色を使う
-  const accentColor = lightBg ? card.textColor : card.mainColor;
+  // 装飾(区切り線・アイコン)は通常メインカラー。ただしメインカラーが明るく
+  // 文字色が暗い(=明るいデザイン)場合は見えなくなるため文字色を使う
+  const accentColor =
+    isLightColor(card.mainColor) && !lightText ? card.textColor : card.mainColor;
   // logoSize はカード幅に対する% (5–90)。
   const rawSize = card.logoSize ?? 20;
   const logoSize =
@@ -303,60 +306,77 @@ export default function BusinessCardPreview({
           </div>
         ))}
 
-        {/* 文字ブロック（名前・会社・連絡先）: 位置と幅を変更でき、幅に応じて文字サイズも変わる */}
+        {/* 文字ブロック（名前・会社・連絡先）: 位置と幅を変更でき、幅に応じて文字サイズも変わる。
+            外枠=スケール基準(非表示)、内側ラッパー=実際の文字にフィット(枠・ハンドル表示) */}
         <div
-          className={`absolute [container-type:inline-size] ${interactiveText ? "touch-none cursor-move" : ""}`}
+          className="absolute [container-type:inline-size]"
           style={{
             left: `${textAreaX}%`,
             bottom: `${textAreaBottom}%`,
             width: `${textAreaWidth}%`,
+            textAlign,
           }}
-          onPointerDown={interactiveText ? onTextPD : undefined}
-          onPointerMove={interactiveText ? onTextPM : undefined}
-          onPointerUp={interactiveText ? onTextPU : undefined}
         >
-          {/* 名前・会社 */}
-          <div className="h-px w-[10%]" style={{ marginBottom: s(3.6), backgroundColor: accentColor }} />
-          <p className="font-medium tracking-[0.22em] opacity-80" style={{ fontSize: s(3) }}>
-            {card.company || "COMPANY NAME"}
-          </p>
-          <h1 className="font-semibold leading-tight tracking-[0.06em]" style={{ marginTop: s(1.2), fontSize: s(7.2) }}>
-            {card.name || "お名前"}
-          </h1>
-          <p className="font-medium opacity-80" style={{ marginTop: s(1.2), fontSize: s(3.6) }}>
-            {card.title || "役職・肩書き"}
-          </p>
-          {card.department && (
-            <p className="font-medium opacity-60" style={{ marginTop: s(0.6), fontSize: s(3) }}>{card.department}</p>
-          )}
+          <div
+            className={`relative w-max max-w-full ${
+              textAlign === "center" ? "mx-auto" : textAlign === "right" ? "ml-auto" : ""
+            } ${interactiveText ? "touch-none cursor-move" : ""}`}
+            onPointerDown={interactiveText ? onTextPD : undefined}
+            onPointerMove={interactiveText ? onTextPM : undefined}
+            onPointerUp={interactiveText ? onTextPU : undefined}
+          >
+            {/* 名前・会社 */}
+            <p className="font-medium tracking-[0.22em] opacity-80" style={{ fontSize: s(3) }}>
+              {card.company || "COMPANY NAME"}
+            </p>
+            <h1 className="font-semibold leading-tight tracking-[0.06em]" style={{ marginTop: s(1.2), fontSize: s(7.2) }}>
+              {card.name || "お名前"}
+            </h1>
+            <p className="font-medium opacity-80" style={{ marginTop: s(1.2), fontSize: s(3.6) }}>
+              {card.title || "役職・肩書き"}
+            </p>
+            {card.department && (
+              <p className="font-medium opacity-60" style={{ marginTop: s(0.6), fontSize: s(3) }}>{card.department}</p>
+            )}
 
-          {/* 連絡先 */}
-          <div className="grid min-w-0" style={{ marginTop: s(3.6), gap: s(1.8), fontSize: s(3) }}>
-            {contactRows.map(({ key, Icon }) => {
-              const value = card[key];
-              if (!value) return null;
-              return (
-                <div key={key} className="flex min-w-0 items-start" style={{ gap: s(1.8) }}>
-                  <Icon className="shrink-0" style={{ marginTop: s(0.4), height: s(3.6), width: s(3.6), color: accentColor }} />
-                  <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
-                </div>
-              );
-            })}
+            {/* 連絡先 */}
+            <div className="grid min-w-0" style={{ marginTop: s(3.6), gap: s(1.8), fontSize: s(3) }}>
+              {contactRows.map(({ key, Icon }) => {
+                const value = card[key];
+                if (!value) return null;
+                return (
+                  <div
+                    key={key}
+                    className={`flex min-w-0 items-start ${
+                      textAlign === "center"
+                        ? "justify-center"
+                        : textAlign === "right"
+                          ? "justify-end"
+                          : ""
+                    }`}
+                    style={{ gap: s(1.8) }}
+                  >
+                    <Icon className="shrink-0" style={{ marginTop: s(0.4), height: s(3.6), width: s(3.6), color: accentColor }} />
+                    <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 選択枠・リサイズハンドル（編集時のみ・実際の文字にフィット） */}
+            {interactiveText && (
+              <>
+                <div className="pointer-events-none absolute -inset-1.5 rounded border-2 border-dashed border-white/70 mix-blend-difference" />
+                <div
+                  className="absolute cursor-se-resize touch-none rounded-sm bg-white shadow-md"
+                  style={{ width: 12, height: 12, bottom: -6, right: -6 }}
+                  onPointerDown={onTextResizePD}
+                  onPointerMove={onTextResizePM}
+                  onPointerUp={onTextPU}
+                />
+              </>
+            )}
           </div>
-
-          {/* 選択枠・リサイズハンドル（編集時のみ） */}
-          {interactiveText && (
-            <>
-              <div className="pointer-events-none absolute -inset-1 rounded border-2 border-dashed border-white/70 mix-blend-difference" />
-              <div
-                className="absolute cursor-se-resize touch-none rounded-sm bg-white shadow-md"
-                style={{ width: 12, height: 12, bottom: -6, right: -6 }}
-                onPointerDown={onTextResizePD}
-                onPointerMove={onTextResizePM}
-                onPointerUp={onTextPU}
-              />
-            </>
-          )}
         </div>
 
       </div>

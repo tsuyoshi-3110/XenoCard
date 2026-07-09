@@ -17,7 +17,8 @@ export type BusinessCard = {
   logoY?: number;    // % from top  (0–80)
   textAreaX?: number;     // 文字ブロック % from left (0–80)
   textAreaY?: number;     // 文字ブロック % from bottom (0–85)
-  textAreaWidth?: number; // 文字ブロック幅 カード幅% (20–100)。文字サイズも連動
+  textAreaWidth?: number; // 文字ブロック幅 カード幅% (20–150)。文字サイズも連動
+  textAlign?: "left" | "center" | "right"; // 文字の水平揃え(既定left)
   createdAt?: unknown;
   updatedAt?: unknown;
 };

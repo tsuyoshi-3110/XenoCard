@@ -18,7 +18,7 @@ import {
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { AsYouType } from "libphonenumber-js";
-import { Bot, Check, ChevronDown, ChevronUp, Copy, Eye, Images, Plus, Save, Share2, Sparkles, Trash2, UserRound, WandSparkles, X } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Bot, Check, ChevronDown, ChevronUp, Copy, Eye, Images, Plus, Save, Share2, Sparkles, Trash2, UserRound, WandSparkles, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { auth, db } from "@/lib/firebase";
 import {
@@ -46,6 +46,7 @@ type GroupSettings = {
   textAreaX: number;
   textAreaY: number;
   textAreaWidth: number;
+  textAlign: "left" | "center" | "right";
 };
 
 const EMPTY_GROUP: GroupSettings = {
@@ -60,6 +61,7 @@ const EMPTY_GROUP: GroupSettings = {
   textAreaX: 8,      // 文字ブロック 左から%
   textAreaY: 7,      // 文字ブロック 下から%
   textAreaWidth: 84, // 文字ブロック幅%（文字サイズ連動）
+  textAlign: "left", // 文字の水平揃え
 };
 
 // メンバー個人情報のフィールド（会社・ロゴ・背景・カラーはグループ共通なので除外）
@@ -166,6 +168,7 @@ function buildMemberCard(group: GroupSettings, personal: Partial<BusinessCard>):
     textAreaX: group.textAreaX,
     textAreaY: group.textAreaY,
     textAreaWidth: group.textAreaWidth,
+    textAlign: group.textAlign,
   };
 }
 
@@ -414,9 +417,12 @@ export default function AdminPage() {
             textAreaWidth:
               typeof gData.textAreaWidth === "number" &&
               gData.textAreaWidth >= 20 &&
-              gData.textAreaWidth <= 100
+              gData.textAreaWidth <= 150
                 ? gData.textAreaWidth
                 : 84,
+            textAlign: ["left", "center", "right"].includes(gData.textAlign)
+              ? (gData.textAlign as "left" | "center" | "right")
+              : "left",
           });
         }
       } else {
@@ -697,6 +703,7 @@ export default function AdminPage() {
             textAreaX: updatedGroup.textAreaX,
             textAreaY: updatedGroup.textAreaY,
             textAreaWidth: updatedGroup.textAreaWidth,
+            textAlign: updatedGroup.textAlign,
             updatedAt: serverTimestamp(),
           };
           await setDoc(cardRef, patch, { merge: true });
@@ -1256,6 +1263,34 @@ export default function AdminPage() {
                     <span className="text-sm text-black">{group.textColor}</span>
                   </div>
                 </label>
+              </div>
+
+              {/* 文字の配置 */}
+              <div>
+                <span className="text-xs font-semibold text-black">文字の配置</span>
+                <div className="mt-1 grid grid-cols-3 gap-1 rounded-lg border border-stone-200 bg-white p-1">
+                  {(
+                    [
+                      { value: "left", label: "左詰め", Icon: AlignLeft },
+                      { value: "center", label: "中央", Icon: AlignCenter },
+                      { value: "right", label: "右詰め", Icon: AlignRight },
+                    ] as const
+                  ).map(({ value, label, Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setGroup((g) => ({ ...g, textAlign: value }))}
+                      className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-semibold transition ${
+                        group.textAlign === value
+                          ? "bg-stone-900 text-white"
+                          : "text-black/60 hover:bg-stone-100"
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* ロゴがある場合のヒント */}
