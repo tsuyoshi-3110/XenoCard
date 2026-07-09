@@ -279,60 +279,37 @@ export default function AdminPage() {
     }
   };
 
-  // 本人用リンク(名刺取り込み用トークン付き)を発行してコピー
-  const handleCopyOwnerLink = (slug: string) => {
-    const fetchLink = async (): Promise<string> => {
-      const idToken = await user?.getIdToken();
-      if (!idToken) throw new Error("ログイン情報を確認できませんでした。");
-      const response = await fetch("/api/scans/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({ slug }),
-      });
-      const json = (await response.json().catch(() => ({}))) as {
-        token?: string;
-        error?: string;
-      };
-      if (!response.ok || !json.token) {
-        throw new Error(json.error || "リンクを発行できませんでした。");
-      }
-      return `${getCardUrl(slug)}#k=${json.token}`;
-    };
-    const done = () => {
+  // iPhone用の案内文(URL＋ホーム画面追加手順)をコピー
+  const getIphoneGuideMessage = (name: string, url: string) =>
+    [
+      `${name}のデジタル名刺はこちらからご確認いただけます。`,
+      "",
+      url,
+      "",
+      "【iPhoneの場合】",
+      "1. リンクをSafariで開く",
+      "2. 共有ボタン →「ホーム画面に追加」",
+      "",
+      "アプリのようにワンタップで名刺を開けるようになり便利です。",
+    ].join("\n");
+
+  const handleCopyIphoneGuide = (slug: string, name: string) => {
+    const text = getIphoneGuideMessage(name, getCardUrl(slug));
+    const doCopy = () => {
       setCopiedOwnerSlug(slug);
-      showToast("本人用リンクをコピーしました");
+      showToast("iPhone用の案内文をコピーしました");
       setCopyPopSlug(null);
       setTimeout(() => setCopiedOwnerSlug(null), 1500);
     };
-    // iOS Safariはfetch後のクリップボード操作を拒否するためClipboardItem(Promise)を優先
-    if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-      const item = new ClipboardItem({
-        "text/plain": fetchLink().then(
-          (link) => new Blob([link], { type: "text/plain" }),
-        ),
-      });
-      void navigator.clipboard
-        .write([item])
-        .then(done)
-        .catch(async () => {
-          try {
-            const link = await fetchLink();
-            await navigator.clipboard.writeText(link);
-            done();
-          } catch (err) {
-            alert(errorMessage(err));
-          }
-        });
+    if (navigator.clipboard) {
+      void navigator.clipboard.writeText(text).then(doCopy);
     } else {
-      void fetchLink()
-        .then(async (link) => {
-          await navigator.clipboard.writeText(link);
-          done();
-        })
-        .catch((err) => alert(errorMessage(err)));
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.style.position = "fixed"; el.style.opacity = "0";
+      document.body.appendChild(el); el.select();
+      document.execCommand("copy"); document.body.removeChild(el);
+      doCopy();
     }
   };
 
@@ -1583,27 +1560,22 @@ export default function AdminPage() {
                                     : <Copy className="h-4 w-4 shrink-0 text-black/40" />}
                                 </button>
 
-                                {/* ③ 本人用リンク(名刺取り込み) */}
+                                {/* ③ iPhone用の案内文(URL＋ホーム画面追加手順) */}
                                 <button
                                   type="button"
-                                  onClick={() => handleCopyOwnerLink(m.cardSlug)}
-                                  className="mt-1.5 flex w-full items-center justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-left transition hover:bg-amber-100"
+                                  onClick={() => handleCopyIphoneGuide(m.cardSlug, m.displayName)}
+                                  className="mt-1.5 flex w-full items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2.5 text-left transition hover:bg-stone-100"
                                 >
                                   <div className="min-w-0">
-                                    <p className="text-[10px] font-semibold text-amber-700">③ 本人用リンクをコピー（名刺取り込み用）</p>
+                                    <p className="text-[10px] font-semibold text-black/50">③ iPhone用の案内文をコピー</p>
                                     <p className="line-clamp-2 text-xs text-black/70">
-                                      本人だけに渡す専用リンク。開くと取り込んだ名刺がサーバー保存になり、端末が変わっても引き継げます。
+                                      URLと「Safariで開く→共有→ホーム画面に追加」の手順入り。ワンタップで名刺を開けるようになります。
                                     </p>
                                   </div>
                                   {copiedOwnerSlug === m.cardSlug
                                     ? <Check className="h-4 w-4 shrink-0 text-green-600" />
                                     : <Copy className="h-4 w-4 shrink-0 text-black/40" />}
                                 </button>
-
-                                {/* iPhone向けの使い方ヒント */}
-                                <p className="mt-2 rounded-xl bg-stone-100 px-3 py-2.5 text-[10px] leading-relaxed text-black/55">
-                                  📱 iPhoneの場合：URLをコピーしてSafariに貼り付けて開き、共有ボタン →「ホーム画面に追加」をしておくと、アプリのようにワンタップで名刺を開けて便利です。
-                                </p>
                                 </div>
                               </>
                             )}
