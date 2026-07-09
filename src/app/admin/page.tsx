@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -211,6 +211,15 @@ export default function AdminPage() {
   const [copiedOwnerSlug, setCopiedOwnerSlug] = useState<string | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
+  // コピー完了トースト
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef<number | null>(null);
+  const showToast = (message: string) => {
+    setToast(message);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(""), 2000);
+  };
+
   const getCardUrl = (slug: string) =>
     `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://xeno-card.vercel.app"}/m/${encodeURIComponent(slug || "")}`;
 
@@ -221,7 +230,9 @@ export default function AdminPage() {
     const url = getCardUrl(slug);
     const doCopy = () => {
       setCopiedSlug(slug);
-      setTimeout(() => { setCopiedSlug(null); setCopyPopSlug(null); }, 800);
+      showToast("URLをコピーしました");
+      setCopyPopSlug(null);
+      setTimeout(() => setCopiedSlug(null), 1500);
     };
     if (navigator.clipboard) {
       void navigator.clipboard.writeText(url).then(doCopy);
@@ -240,7 +251,9 @@ export default function AdminPage() {
     const text = getCardMessage(name, url);
     const doCopy = () => {
       setCopiedMsgSlug(slug);
-      setTimeout(() => { setCopiedMsgSlug(null); setCopyPopSlug(null); }, 800);
+      showToast("文章をコピーしました");
+      setCopyPopSlug(null);
+      setTimeout(() => setCopiedMsgSlug(null), 1500);
     };
     if (navigator.clipboard) {
       void navigator.clipboard.writeText(text).then(doCopy);
@@ -278,7 +291,9 @@ export default function AdminPage() {
     };
     const done = () => {
       setCopiedOwnerSlug(slug);
-      setTimeout(() => setCopiedOwnerSlug(null), 1200);
+      showToast("本人用リンクをコピーしました");
+      setCopyPopSlug(null);
+      setTimeout(() => setCopiedOwnerSlug(null), 1500);
     };
     // iOS Safariはfetch後のクリップボード操作を拒否するためClipboardItem(Promise)を優先
     if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
@@ -1108,13 +1123,29 @@ export default function AdminPage() {
                 {/* ロゴ：正方形 112×112px */}
                 <label className="block shrink-0 cursor-pointer">
                   <span className="text-xs font-semibold text-black">ロゴ画像</span>
-                  <div className="mt-1 flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
+                  <div className="relative mt-1 flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50">
                     {groupLogoPreview || group.logoUrl ? (
-                      <img
-                        src={groupLogoPreview || group.logoUrl}
-                        alt="logo"
-                        className="h-full w-full object-contain p-2"
-                      />
+                      <>
+                        <img
+                          src={groupLogoPreview || group.logoUrl}
+                          alt="logo"
+                          className="h-full w-full object-contain p-2"
+                        />
+                        <button
+                          type="button"
+                          aria-label="ロゴ画像を削除"
+                          onClick={(e) => {
+                            // label内のためファイル選択が開かないよう既定動作を止める
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setGroupLogoFile(null);
+                            setGroup((g) => ({ ...g, logoUrl: "" }));
+                          }}
+                          className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white transition hover:bg-black"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </>
                     ) : (
                       <span className="text-center text-xs text-stone-400">クリックして<br/>選択</span>
                     )}
@@ -1131,14 +1162,29 @@ export default function AdminPage() {
                 <label className="block shrink-0 cursor-pointer">
                   <span className="text-xs font-semibold text-black">背景画像</span>
                   <div
-                    className="mt-1 overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50"
+                    className="relative mt-1 overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50"
                     style={{ height: "112px", width: "50px" }}
                   >
                     {groupBgPreview || group.backgroundUrl ? (
-                      <div
-                        className="h-full w-full bg-cover bg-top"
-                        style={{ backgroundImage: `url("${groupBgPreview || group.backgroundUrl}")` }}
-                      />
+                      <>
+                        <div
+                          className="h-full w-full bg-cover bg-top"
+                          style={{ backgroundImage: `url("${groupBgPreview || group.backgroundUrl}")` }}
+                        />
+                        <button
+                          type="button"
+                          aria-label="背景画像を削除"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setGroupBgFile(null);
+                            setGroup((g) => ({ ...g, backgroundUrl: "" }));
+                          }}
+                          className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white transition hover:bg-black"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </>
                     ) : (
                       <span className="flex h-full items-center justify-center text-center text-[9px] text-stone-400">選択</span>
                     )}
@@ -1422,26 +1468,27 @@ export default function AdminPage() {
                             {/* ポップアップ */}
                             {copyPopSlug === m.cardSlug && (
                               <>
+                                {/* 背面タップで閉じる(全画面サイズ共通) */}
                                 <button
                                   type="button"
                                   aria-label="コピーメニューを閉じる"
                                   onClick={() => setCopyPopSlug(null)}
-                                  className="fixed inset-0 z-40 bg-black/30 sm:hidden"
+                                  className="fixed inset-0 z-40 cursor-default bg-black/30 sm:bg-black/10"
                                 />
                                 <div
                                   role="dialog"
                                   aria-modal="true"
                                   aria-label="名刺をコピー"
-                                  className="fixed inset-x-3 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-full sm:right-0 sm:z-20 sm:mb-2 sm:w-64 sm:max-h-none sm:overflow-visible sm:shadow-xl"
+                                  className="fixed inset-x-3 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-full sm:right-0 sm:mb-2 sm:w-64 sm:max-h-none sm:overflow-visible sm:shadow-xl"
                                 >
-                                  <div className="mb-2 flex items-center justify-between px-1 sm:hidden">
+                                  <div className="mb-2 flex items-center justify-between px-1">
                                     <p className="text-xs font-semibold text-black">
                                       名刺をコピー
                                     </p>
                                     <button
                                       type="button"
                                       onClick={() => setCopyPopSlug(null)}
-                                      className="grid h-8 w-8 place-items-center rounded-full bg-stone-100 text-black"
+                                      className="grid h-8 w-8 place-items-center rounded-full bg-stone-100 text-black transition hover:bg-stone-200"
                                       aria-label="閉じる"
                                     >
                                       <X className="h-4 w-4" />
@@ -1610,6 +1657,16 @@ export default function AdminPage() {
           </div>
         </section>
       </div>
+
+      {/* コピー完了トースト */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2">
+          <div className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white shadow-xl">
+            <Check className="h-4 w-4 text-green-400" />
+            {toast}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
