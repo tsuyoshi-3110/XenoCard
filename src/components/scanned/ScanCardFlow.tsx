@@ -18,8 +18,7 @@ import {
   normalizeScannedFields,
   type ScannedCard,
 } from "@/lib/scannedCard";
-import { addScannedCard } from "@/lib/scannedStore";
-import { loadScanCredential, saveRemoteScan } from "@/lib/scannedRemote";
+import { saveRemoteScan } from "@/lib/scannedRemote";
 import CardCropper from "@/components/scanned/CardCropper";
 
 type Step = "capture" | "crop" | "processing" | "review" | "saving" | "done";
@@ -251,15 +250,8 @@ export default function ScanCardFlow({
         address: fields.address,
         memo: fields.memo,
       };
-      // 本人用リンク登録済みならサーバー(Firestore)へ、無ければこの端末内へ保存
-      const cred = loadScanCredential();
-      const saved = cred
-        ? await saveRemoteScan(cred, payload, imageBlob, backBlob)
-        : await addScannedCard({
-            ...payload,
-            image: imageBlob,
-            imageBack: backBlob ?? undefined,
-          });
+      // 常にサーバー(Firestore)へ保存する(設定不要)
+      const saved = await saveRemoteScan(slug, payload, imageBlob, backBlob);
       setSavedCard(saved);
       setStep("done");
       onSaved?.();

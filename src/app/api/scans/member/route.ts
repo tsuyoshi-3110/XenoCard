@@ -5,7 +5,6 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const SCANS = "xenocardScans";
-const TOKENS = "xenocardScanTokens";
 
 // メンバー削除時のスキャンデータ処理(管理者のみ)。
 // action: "delete"  → データ+画像を完全削除
@@ -52,12 +51,6 @@ export async function POST(request: NextRequest) {
         await docSnap.ref.set({ inherited: true }, { merge: true });
       }
       processed += 1;
-    }
-
-    // 本人用トークンは常に無効化(削除)
-    const tokenSnap = await adminDb.collection(TOKENS).doc(slug).get();
-    if (tokenSnap.exists && tokenSnap.data()?.adminUid === uid) {
-      await tokenSnap.ref.delete();
     }
 
     return NextResponse.json({ ok: true, processed, action });

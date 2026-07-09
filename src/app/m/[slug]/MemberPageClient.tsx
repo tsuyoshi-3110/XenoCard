@@ -6,7 +6,6 @@ import QRCode from "qrcode";
 import { CreditCard, Images, QrCode, ScanLine, Share2, X } from "lucide-react";
 import { isLightColor } from "@/lib/businessCard";
 import ScanCardFlow from "@/components/scanned/ScanCardFlow";
-import { saveScanCredential } from "@/lib/scannedRemote";
 
 // サーバーから渡す表示用の最小データ(Firestore Timestamp等は含めない)
 export type MemberCard = {
@@ -36,16 +35,6 @@ export default function MemberPageClient({ card }: { card: MemberCard }) {
       } catch {
         /* localStorage不可の環境は無視 */
       }
-    }
-  }, [slug]);
-
-  // 本人用リンク(#k=トークン)で開かれたらトークンを端末に保存しURLから消す
-  useEffect(() => {
-    if (!slug) return;
-    const match = window.location.hash.match(/^#k=([A-Za-z0-9]+)/);
-    if (match) {
-      saveScanCredential({ slug, token: match[1] });
-      window.history.replaceState(null, "", window.location.pathname);
     }
   }, [slug]);
 

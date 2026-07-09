@@ -5,13 +5,10 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ScanLine, Search, Trash2, UserPlus, X } from "lucide-react";
 import ScanCardFlow from "@/components/scanned/ScanCardFlow";
 import { downloadVCard, type ScannedCard } from "@/lib/scannedCard";
-import { deleteScannedCard, listScannedCards } from "@/lib/scannedStore";
 import {
   deleteRemoteScan,
   listRemoteScans,
-  loadScanCredential,
   migrateLocalScans,
-  type ScanCredential,
 } from "@/lib/scannedRemote";
 
 function onlyDigits(value: string): string {
@@ -39,8 +36,6 @@ export default function ScannedListPage() {
   const [scanFile, setScanFile] = useState<File | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [scanSlug, setScanSlug] = useState("");
-  const [cred, setCred] = useState<ScanCredential | null>(null);
-  const [credReady, setCredReady] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -49,35 +44,30 @@ export default function ScannedListPage() {
     } catch {
       setScanSlug("");
     }
-    setCred(loadScanCredential());
-    setCredReady(true);
   }, []);
 
   const reload = useCallback(async () => {
     try {
-      // 本人用リンク登録済みならサーバーから、無ければこの端末内から読む
-      setCards(cred ? await listRemoteScans(cred) : await listScannedCards());
+      setCards(await listRemoteScans());
     } catch {
       setCards([]);
     } finally {
       setLoading(false);
     }
-  }, [cred]);
+  }, []);
 
   useEffect(() => {
-    if (!credReady) return;
     void (async () => {
-      if (cred) {
-        try {
-          // 端末内に残っている過去データをサーバーへ移行
-          await migrateLocalScans(cred);
-        } catch {
-          /* 移行失敗分はローカルに残る */
-        }
+      try {
+        // 旧・端末内(IndexedDB)に残っているデータをサーバーへ移行
+        const slug = window.localStorage.getItem("xenocard:lastSlug") || "";
+        await migrateLocalScans(slug);
+      } catch {
+        /* 移行失敗分はローカルに残る */
       }
       await reload();
     })();
-  }, [credReady, cred, reload]);
+  }, [reload]);
 
   // 表示用URL(サーバー保存はimageUrl、端末内保存はBlobから生成)
   const imageUrls = useMemo(() => {
@@ -121,8 +111,7 @@ export default function ScannedListPage() {
     if (!window.confirm("この名刺を削除しますか？")) return;
     setDeleting(true);
     try {
-      if (cred) await deleteRemoteScan(cred, card.id);
-      else await deleteScannedCard(card.id);
+      await deleteRemoteScan(card.id);
       setViewerIndex(null);
       await reload();
     } catch {
@@ -157,9 +146,7 @@ export default function ScannedListPage() {
             <div className="min-w-0">
               <h1 className="text-lg font-semibold">取り込んだ名刺</h1>
               <p className="truncate text-[10px] text-white/30">
-                {cred
-                  ? "サーバー保存（端末が変わっても本人用リンクで引き継げます）"
-                  : "この端末内のみ（本人用リンクを開くとサーバー保存になります）"}
+                サーバーに保存されています
               </p>
             </div>
             <span className="ml-auto shrink-0 text-sm text-white/40">

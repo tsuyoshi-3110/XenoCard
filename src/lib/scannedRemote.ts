@@ -1,40 +1,24 @@
 // 取り込んだ名刺のサーバー(Firestore)保存クライアント。
-// 本人用リンク(/m/{slug}#k={token})で受け取ったトークンを端末に記憶し、
-// 以後の保存・一覧・削除はサーバーAPI経由で行う。
+// 端末ごとに自動発行するID(設定・ログイン不要)で自分の取り込み分を識別する。
 import type { ScannedCard } from "@/lib/scannedCard";
 import { deleteScannedCard, listScannedCards } from "@/lib/scannedStore";
 
-const CRED_KEY = "xenocard:scanCred";
+const DEVICE_KEY = "xenocard:deviceId";
 
-export type ScanCredential = { slug: string; token: string };
-
-export function saveScanCredential(cred: ScanCredential): void {
+// 端末IDを取得(無ければ自動発行して保存)
+export function getDeviceId(): string {
   try {
-    window.localStorage.setItem(CRED_KEY, JSON.stringify(cred));
-  } catch {
-    /* localStorage不可の環境は無視 */
-  }
-}
-
-export function loadScanCredential(): ScanCredential | null {
-  try {
-    const raw = window.localStorage.getItem(CRED_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ScanCredential;
-    if (parsed && typeof parsed.slug === "string" && typeof parsed.token === "string") {
-      return parsed.slug && parsed.token ? parsed : null;
+    let id = window.localStorage.getItem(DEVICE_KEY) || "";
+    if (!/^[A-Za-z0-9-]{8,64}$/.test(id)) {
+      id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(DEVICE_KEY, id);
     }
-    return null;
+    return id;
   } catch {
-    return null;
-  }
-}
-
-export function clearScanCredential(): void {
-  try {
-    window.localStorage.removeItem(CRED_KEY);
-  } catch {
-    /* ignore */
+    return "no-local-storage";
   }
 }
 
@@ -46,7 +30,7 @@ async function parseJson<T>(response: Response): Promise<T & ApiError> {
 
 // 保存(画像+項目を1リクエストで。裏面は任意)
 export async function saveRemoteScan(
-  cred: ScanCredential,
+  slug: string,
   fields: Omit<
     ScannedCard,
     "id" | "image" | "imageUrl" | "imageBack" | "imageBackUrl" | "createdAt"
@@ -55,7 +39,8 @@ export async function saveRemoteScan(
   imageBack?: Blob | null,
 ): Promise<ScannedCard> {
   const formData = new FormData();
-  formData.append("slug", cred.slug);
+  formData.append("slug", slug);
+  formData.append("deviceId", getDeviceId());
   formData.append("fields", JSON.stringify(fields));
   formData.append(
     "image",
@@ -69,48 +54,43 @@ export async function saveRemoteScan(
       }),
     );
   }
-  const response = await fetch("/api/scans", {
-    method: "POST",
-    headers: { "x-scan-token": cred.token },
-    body: formData,
-  });
+  const response = await fetch("/api/scans", { method: "POST", body: formData });
   const data = await parseJson<ScannedCard>(response);
   if (!response.ok) throw new Error(data.error || "保存に失敗しました。");
   return data;
 }
 
-export async function listRemoteScans(cred: ScanCredential): Promise<ScannedCard[]> {
-  const response = await fetch(`/api/scans?slug=${encodeURIComponent(cred.slug)}`, {
-    headers: { "x-scan-token": cred.token },
-  });
+// この端末で取り込んだ一覧
+export async function listRemoteScans(): Promise<ScannedCard[]> {
+  const response = await fetch(
+    `/api/scans?deviceId=${encodeURIComponent(getDeviceId())}`,
+  );
   const data = await parseJson<{ items?: ScannedCard[] }>(response);
   if (!response.ok) throw new Error(data.error || "読み込みに失敗しました。");
   return data.items || [];
 }
 
-export async function deleteRemoteScan(cred: ScanCredential, id: string): Promise<void> {
+export async function deleteRemoteScan(id: string): Promise<void> {
   const response = await fetch("/api/scans", {
     method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      "x-scan-token": cred.token,
-    },
-    body: JSON.stringify({ id, slug: cred.slug }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, deviceId: getDeviceId() }),
   });
   const data = await parseJson<{ ok?: boolean }>(response);
   if (!response.ok) throw new Error(data.error || "削除に失敗しました。");
 }
 
-// 端末内(IndexedDB)に残っている名刺をサーバーへ移行する。
+// 旧・端末内(IndexedDB)に残っている名刺をサーバーへ移行する。
 // 成功した分だけローカルから削除し、移行件数を返す。
-export async function migrateLocalScans(cred: ScanCredential): Promise<number> {
+export async function migrateLocalScans(slug: string): Promise<number> {
+  if (!slug) return 0;
   const locals = await listScannedCards();
   let migrated = 0;
   for (const card of locals) {
     if (!card.id || !card.image) continue;
     try {
       await saveRemoteScan(
-        cred,
+        slug,
         {
           name: card.name,
           company: card.company,
