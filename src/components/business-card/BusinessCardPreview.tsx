@@ -26,6 +26,18 @@ const contactRows = [
   { key: "address", Icon: MapPin },
 ] as const;
 
+// 白など明るいメインカラーを選んだ場合は、暗い装飾グラデーションではなく
+// メインカラーそのままの単色背景で描画する
+function isLightColor(hex: string, threshold = 0.82): boolean {
+  const match = /^#?([0-9a-f]{6})$/i.exec((hex || "").trim());
+  if (!match) return false;
+  const value = parseInt(match[1], 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > threshold;
+}
+
 export default function BusinessCardPreview({
   card,
   logoPreviewUrl,
@@ -118,6 +130,13 @@ export default function BusinessCardPreview({
   const onPU = () => { drag.current = null; };
 
   const interactive = !!onLogoChange;
+  // 明るいメインカラー(白など)＋背景画像なし → 単色の明るい背景で描画
+  const lightBg = !backgroundUrl && isLightColor(card.mainColor);
+  // 文字色が明るい(白文字) → 背景を暗くする従来のオーバーレイ。
+  // 文字色が暗い(黒文字) → 明るいデザインなので白系のオーバーレイで読みやすくする。
+  const lightText = isLightColor(card.textColor, 0.6);
+  // 明るい背景ではメインカラーの装飾(白線・白アイコン)が見えないため文字色を使う
+  const accentColor = lightBg ? card.textColor : card.mainColor;
   // logoSize はカード幅に対する% (5–90)。
   const rawSize = card.logoSize ?? 20;
   const logoSize =
@@ -148,11 +167,21 @@ export default function BusinessCardPreview({
         <div
           className="absolute inset-0"
           style={{
-            background: `radial-gradient(circle at 18% 15%, ${card.mainColor}66, transparent 34%), linear-gradient(145deg, #252525 0%, #090909 68%, ${card.mainColor}55 135%)`,
+            background: lightBg
+              ? card.mainColor
+              : `radial-gradient(circle at 18% 15%, ${card.mainColor}66, transparent 34%), linear-gradient(145deg, #252525 0%, #090909 68%, ${card.mainColor}55 135%)`,
           }}
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/35 to-black/80" />
+      {!lightBg && (
+        <div
+          className={`absolute inset-0 bg-gradient-to-b ${
+            lightText
+              ? "from-black/20 via-black/35 to-black/80"
+              : "from-white/10 via-white/20 to-white/55"
+          }`}
+        />
+      )}
 
       {/* コンテンツ */}
       <div className="relative flex h-full flex-col px-[8%] pb-[7%] pt-[10%]">
@@ -192,7 +221,7 @@ export default function BusinessCardPreview({
           </div>
         ) : (
           <div
-            className={`absolute grid place-items-center rounded-2xl border border-white/20 font-semibold shadow-lg ${interactive ? "cursor-move touch-none" : ""}`}
+            className={`absolute grid place-items-center rounded-2xl border font-semibold shadow-lg ${lightBg ? "border-black/15" : "border-white/20"} ${interactive ? "cursor-move touch-none" : ""}`}
             style={{
               top: `${logoY}%`, left: `${logoX}%`,
               width: `${logoSize}%`, aspectRatio: "1",
@@ -209,7 +238,7 @@ export default function BusinessCardPreview({
 
         {/* 名前・会社 */}
         <div className="mt-auto">
-          <div className="h-px w-[10%]" style={{ marginBottom: s(3.6), backgroundColor: card.mainColor }} />
+          <div className="h-px w-[10%]" style={{ marginBottom: s(3.6), backgroundColor: accentColor }} />
           <p className="font-medium tracking-[0.22em] opacity-80" style={{ fontSize: s(3) }}>
             {card.company || "COMPANY NAME"}
           </p>
@@ -231,7 +260,7 @@ export default function BusinessCardPreview({
             if (!value) return null;
             return (
               <div key={key} className="flex min-w-0 items-start" style={{ gap: s(1.8) }}>
-                <Icon className="shrink-0" style={{ marginTop: s(0.4), height: s(3.6), width: s(3.6), color: card.mainColor }} />
+                <Icon className="shrink-0" style={{ marginTop: s(0.4), height: s(3.6), width: s(3.6), color: accentColor }} />
                 <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
               </div>
             );

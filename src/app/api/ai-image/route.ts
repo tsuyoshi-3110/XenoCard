@@ -192,7 +192,8 @@ function buildPrompt({
     brandContext,
     `Creative direction: ${prompt}.`,
     "Elegant, understated, high-end visual identity.",
-    "Keep the center and lower-left areas calm and dark enough for white contact text.",
+    "Follow the creative direction for overall brightness: if a light, white, or pale background is requested, make it genuinely light and airy; otherwise a deep, dark tone works well.",
+    "Keep the center and lower-left areas calm and evenly toned so overlaid contact text stays readable.",
     "Leave the upper-left area usable for a logo and the lower-right area usable for a QR code.",
     "No people, no devices, no business card mockup, no text, no letters, no numbers, no logo, no watermark.",
   ].join(" ");
