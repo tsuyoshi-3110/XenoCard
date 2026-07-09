@@ -1599,6 +1599,11 @@ export default function AdminPage() {
                                     ? <Check className="h-4 w-4 shrink-0 text-green-600" />
                                     : <Copy className="h-4 w-4 shrink-0 text-black/40" />}
                                 </button>
+
+                                {/* iPhone向けの使い方ヒント */}
+                                <p className="mt-2 rounded-xl bg-stone-100 px-3 py-2.5 text-[10px] leading-relaxed text-black/55">
+                                  📱 iPhoneの場合：URLをコピーしてSafariに貼り付けて開き、共有ボタン →「ホーム画面に追加」をしておくと、アプリのようにワンタップで名刺を開けて便利です。
+                                </p>
                                 </div>
                               </>
                             )}
