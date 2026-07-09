@@ -43,6 +43,9 @@ type GroupSettings = {
   logoSize: number;
   logoX: number;
   logoY: number;
+  textAreaX: number;
+  textAreaY: number;
+  textAreaWidth: number;
 };
 
 const EMPTY_GROUP: GroupSettings = {
@@ -54,6 +57,9 @@ const EMPTY_GROUP: GroupSettings = {
   logoSize: 20, // カード幅に対する%
   logoX: 8,
   logoY: 8,
+  textAreaX: 8,      // 文字ブロック 左から%
+  textAreaY: 7,      // 文字ブロック 下から%
+  textAreaWidth: 84, // 文字ブロック幅%（文字サイズ連動）
 };
 
 // メンバー個人情報のフィールド（会社・ロゴ・背景・カラーはグループ共通なので除外）
@@ -157,6 +163,9 @@ function buildMemberCard(group: GroupSettings, personal: Partial<BusinessCard>):
     logoSize: group.logoSize,
     logoX: group.logoX,
     logoY: group.logoY,
+    textAreaX: group.textAreaX,
+    textAreaY: group.textAreaY,
+    textAreaWidth: group.textAreaWidth,
   };
 }
 
@@ -400,6 +409,14 @@ export default function AdminPage() {
                 : 20,
             logoX: gData.logoX ?? 8,
             logoY: gData.logoY ?? 8,
+            textAreaX: gData.textAreaX ?? 8,
+            textAreaY: gData.textAreaY ?? 7,
+            textAreaWidth:
+              typeof gData.textAreaWidth === "number" &&
+              gData.textAreaWidth >= 20 &&
+              gData.textAreaWidth <= 100
+                ? gData.textAreaWidth
+                : 84,
           });
         }
       } else {
@@ -677,6 +694,9 @@ export default function AdminPage() {
             logoSize: updatedGroup.logoSize,
             logoX: updatedGroup.logoX,
             logoY: updatedGroup.logoY,
+            textAreaX: updatedGroup.textAreaX,
+            textAreaY: updatedGroup.textAreaY,
+            textAreaWidth: updatedGroup.textAreaWidth,
             updatedAt: serverTimestamp(),
           };
           await setDoc(cardRef, patch, { merge: true });
@@ -1278,13 +1298,14 @@ export default function AdminPage() {
                           setGroup((g) => ({ ...g, logoX, logoY, logoSize }))
                       : undefined
                   }
+                  onTextAreaChange={({ textAreaX, textAreaY, textAreaWidth }) =>
+                    setGroup((g) => ({ ...g, textAreaX, textAreaY, textAreaWidth }))
+                  }
                 />
               </PhoneMockup>
-              {(group.logoUrl || groupLogoPreview) && (
-                <p className="text-center text-[10px] text-black/35">
-                  ロゴをドラッグ → 移動　右下◻️ → リサイズ
-                </p>
-              )}
+              <p className="text-center text-[10px] text-black/35">
+                ロゴ・文字をドラッグ → 移動　右下◻️ → リサイズ（文字サイズ連動）
+              </p>
             </div>
           </div>
         </section>
@@ -1318,14 +1339,15 @@ export default function AdminPage() {
                           setGroup((g) => ({ ...g, logoX, logoY, logoSize }))
                       : undefined
                   }
+                  onTextAreaChange={({ textAreaX, textAreaY, textAreaWidth }) =>
+                    setGroup((g) => ({ ...g, textAreaX, textAreaY, textAreaWidth }))
+                  }
                 />
               </div>
             </div>
-            {(group.logoUrl || groupLogoPreview) && (
-              <p className="pb-4 text-center text-[11px] text-white/30">
-                ロゴをドラッグ → 移動　右下◻️ → リサイズ
-              </p>
-            )}
+            <p className="pb-4 text-center text-[11px] text-white/30">
+              ロゴ・文字をドラッグ → 移動　右下◻️ → リサイズ（文字サイズ連動）
+            </p>
           </div>
         )}
 

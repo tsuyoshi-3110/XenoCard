@@ -5,6 +5,7 @@ import { Globe2, Mail, MapPin, Phone } from "lucide-react";
 import { type BusinessCard } from "@/lib/businessCard";
 
 type LogoVals = { logoX: number; logoY: number; logoSize: number };
+type TextAreaVals = { textAreaX: number; textAreaY: number; textAreaWidth: number };
 
 type Props = {
   card: BusinessCard;
@@ -16,6 +17,7 @@ type Props = {
   fill?: boolean;
   hideLogo?: boolean;
   onLogoChange?: (vals: LogoVals) => void;
+  onTextAreaChange?: (vals: TextAreaVals) => void;
   textScale?: number; // テキスト全体の倍率（デフォルト1.0、プレビューには0.5など）
 };
 
@@ -48,9 +50,11 @@ export default function BusinessCardPreview({
   fill = false,
   hideLogo = false,
   onLogoChange,
+  onTextAreaChange,
   textScale = 1,
 }: Props) {
-  const s = (cqw: number) => `${(cqw * textScale).toFixed(2)}cqw`;
+  // 文字ブロック内はブロック自身の幅(cqw)基準。既定幅84%で従来と同じ大きさになるよう補正
+  const s = (cqw: number) => `${((cqw * textScale * 100) / 84).toFixed(2)}cqw`;
   const logoUrl = logoPreviewUrl || card.logoUrl;
   const backgroundUrl = backgroundPreviewUrl || card.backgroundUrl;
 
@@ -129,7 +133,70 @@ export default function BusinessCardPreview({
 
   const onPU = () => { drag.current = null; };
 
+  // --- 文字ブロックのドラッグ/リサイズ（onTextAreaChange がある場合のみ） ---
+  const textDrag = useRef<{
+    type: "move" | "resize";
+    startCX: number; startCY: number;
+    startX: number; startBottom: number; startWidth: number;
+  } | null>(null);
+
+  const textAreaX = card.textAreaX ?? 8;
+  const textAreaBottom = card.textAreaY ?? 7;
+  const textAreaWidth = card.textAreaWidth ?? 84;
+
+  const onTextPD = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    textDrag.current = {
+      type: "move",
+      startCX: e.clientX, startCY: e.clientY,
+      startX: textAreaX, startBottom: textAreaBottom, startWidth: textAreaWidth,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onTextPM = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = textDrag.current;
+    if (!d || d.type !== "move") return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const dx = ((e.clientX - d.startCX) / rect.width) * 100;
+    const dy = ((e.clientY - d.startCY) / rect.height) * 100;
+    onTextAreaChange?.({
+      textAreaX: Math.round(Math.max(0, Math.min(80, d.startX + dx)) * 10) / 10,
+      textAreaY: Math.round(Math.max(0, Math.min(85, d.startBottom - dy)) * 10) / 10,
+      textAreaWidth: d.startWidth,
+    });
+  };
+
+  const onTextResizePD = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    textDrag.current = {
+      type: "resize",
+      startCX: e.clientX, startCY: e.clientY,
+      startX: textAreaX, startBottom: textAreaBottom, startWidth: textAreaWidth,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onTextResizePM = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = textDrag.current;
+    if (!d || d.type !== "resize") return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const deltaPct = ((e.clientX - d.startCX + (e.clientY - d.startCY)) / 2) / rect.width * 100;
+    onTextAreaChange?.({
+      textAreaX: d.startX,
+      textAreaY: d.startBottom,
+      textAreaWidth:
+        Math.round(Math.max(20, Math.min(100, d.startWidth + deltaPct)) * 10) / 10,
+    });
+  };
+
+  const onTextPU = () => { textDrag.current = null; };
+
   const interactive = !!onLogoChange;
+  const interactiveText = !!onTextAreaChange;
   // 明るいメインカラー(白など)＋背景画像なし → 単色の明るい背景で描画
   const lightBg = !backgroundUrl && isLightColor(card.mainColor);
   // 文字色が明るい(白文字) → 背景を暗くする従来のオーバーレイ。
@@ -236,8 +303,19 @@ export default function BusinessCardPreview({
           </div>
         ))}
 
-        {/* 名前・会社 */}
-        <div className="mt-auto">
+        {/* 文字ブロック（名前・会社・連絡先）: 位置と幅を変更でき、幅に応じて文字サイズも変わる */}
+        <div
+          className={`absolute [container-type:inline-size] ${interactiveText ? "touch-none cursor-move" : ""}`}
+          style={{
+            left: `${textAreaX}%`,
+            bottom: `${textAreaBottom}%`,
+            width: `${textAreaWidth}%`,
+          }}
+          onPointerDown={interactiveText ? onTextPD : undefined}
+          onPointerMove={interactiveText ? onTextPM : undefined}
+          onPointerUp={interactiveText ? onTextPU : undefined}
+        >
+          {/* 名前・会社 */}
           <div className="h-px w-[10%]" style={{ marginBottom: s(3.6), backgroundColor: accentColor }} />
           <p className="font-medium tracking-[0.22em] opacity-80" style={{ fontSize: s(3) }}>
             {card.company || "COMPANY NAME"}
@@ -251,20 +329,34 @@ export default function BusinessCardPreview({
           {card.department && (
             <p className="font-medium opacity-60" style={{ marginTop: s(0.6), fontSize: s(3) }}>{card.department}</p>
           )}
-        </div>
 
-        {/* 連絡先 */}
-        <div className="grid min-w-0" style={{ marginTop: s(3.6), gap: s(1.8), fontSize: s(3) }}>
-          {contactRows.map(({ key, Icon }) => {
-            const value = card[key];
-            if (!value) return null;
-            return (
-              <div key={key} className="flex min-w-0 items-start" style={{ gap: s(1.8) }}>
-                <Icon className="shrink-0" style={{ marginTop: s(0.4), height: s(3.6), width: s(3.6), color: accentColor }} />
-                <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
-              </div>
-            );
-          })}
+          {/* 連絡先 */}
+          <div className="grid min-w-0" style={{ marginTop: s(3.6), gap: s(1.8), fontSize: s(3) }}>
+            {contactRows.map(({ key, Icon }) => {
+              const value = card[key];
+              if (!value) return null;
+              return (
+                <div key={key} className="flex min-w-0 items-start" style={{ gap: s(1.8) }}>
+                  <Icon className="shrink-0" style={{ marginTop: s(0.4), height: s(3.6), width: s(3.6), color: accentColor }} />
+                  <span className="min-w-0 break-all leading-relaxed opacity-90">{value}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 選択枠・リサイズハンドル（編集時のみ） */}
+          {interactiveText && (
+            <>
+              <div className="pointer-events-none absolute -inset-1 rounded border-2 border-dashed border-white/70 mix-blend-difference" />
+              <div
+                className="absolute cursor-se-resize touch-none rounded-sm bg-white shadow-md"
+                style={{ width: 12, height: 12, bottom: -6, right: -6 }}
+                onPointerDown={onTextResizePD}
+                onPointerMove={onTextResizePM}
+                onPointerUp={onTextPU}
+              />
+            </>
+          )}
         </div>
 
       </div>
