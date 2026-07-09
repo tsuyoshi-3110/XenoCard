@@ -5,11 +5,12 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "XenoCard - デジタル名刺",
     short_name: "XenoCard",
     description: "QRコード付きデジタル名刺を表示・管理するアプリ",
-    start_url: "/my-card",
+    // start_urlは指定しない: ホーム画面に追加した時に開いていたページで起動させる
+    // (固定するとログイン必須ページに飛ばされてしまう)
     scope: "/",
     display: "standalone",
-    background_color: "#111111",
-    theme_color: "#111111",
+    background_color: "#ffffff",
+    theme_color: "#ffffff",
     orientation: "portrait",
     icons: [
       {
