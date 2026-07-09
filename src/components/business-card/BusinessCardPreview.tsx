@@ -2,7 +2,7 @@
 
 import { useCallback, useRef } from "react";
 import { Globe2, Mail, MapPin, Phone } from "lucide-react";
-import { type BusinessCard } from "@/lib/businessCard";
+import { isLightColor, type BusinessCard } from "@/lib/businessCard";
 
 type LogoVals = { logoX: number; logoY: number; logoSize: number };
 type TextAreaVals = { textAreaX: number; textAreaY: number; textAreaWidth: number };
@@ -28,17 +28,6 @@ const contactRows = [
   { key: "address", Icon: MapPin },
 ] as const;
 
-// 白など明るいメインカラーを選んだ場合は、暗い装飾グラデーションではなく
-// メインカラーそのままの単色背景で描画する
-function isLightColor(hex: string, threshold = 0.82): boolean {
-  const match = /^#?([0-9a-f]{6})$/i.exec((hex || "").trim());
-  if (!match) return false;
-  const value = parseInt(match[1], 16);
-  const r = (value >> 16) & 255;
-  const g = (value >> 8) & 255;
-  const b = value & 255;
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > threshold;
-}
 
 export default function BusinessCardPreview({
   card,

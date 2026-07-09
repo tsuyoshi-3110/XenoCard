@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import QRCode from "qrcode";
 import { CreditCard, Images, QrCode, ScanLine, Share2, X } from "lucide-react";
-import { type BusinessCard } from "@/lib/businessCard";
+import { isLightColor, type BusinessCard } from "@/lib/businessCard";
 import ScanCardFlow from "@/components/scanned/ScanCardFlow";
 import { saveScanCredential } from "@/lib/scannedRemote";
 import { db } from "@/lib/firebase";
@@ -82,19 +82,25 @@ export default function MemberPage() {
     setQrOpen(true);
   };
 
+  // 明るいデザイン(文字色が暗い)ならページも白基調にする
+  const lightPage = card ? !isLightColor(card.textColor, 0.6) : true;
+  const secondaryButton = lightPage
+    ? "border border-black/15 text-black/70 hover:bg-black/5"
+    : "border border-white/15 text-white/80 hover:bg-white/8";
+
   if (loading) {
     return (
-      <main className="grid min-h-[100dvh] place-items-center bg-[#0d0d0d]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+      <main className="grid min-h-[100dvh] place-items-center bg-white">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-black/15 border-t-black/60" />
       </main>
     );
   }
 
   if (notFound || !card) {
     return (
-      <main className="grid min-h-[100dvh] place-items-center bg-[#0d0d0d] px-6 text-center text-white">
+      <main className="grid min-h-[100dvh] place-items-center bg-white px-6 text-center text-black">
         <div>
-          <p className="text-xs tracking-[0.2em] text-white/40">404</p>
+          <p className="text-xs tracking-[0.2em] text-black/40">404</p>
           <h1 className="mt-3 text-xl font-semibold">ページが見つかりません</h1>
         </div>
       </main>
@@ -102,7 +108,11 @@ export default function MemberPage() {
   }
 
   return (
-    <main className="grid min-h-[100dvh] place-items-center bg-[#0d0d0d] px-6">
+    <main
+      className={`grid min-h-[100dvh] place-items-center px-6 ${
+        lightPage ? "bg-white" : "bg-[#0d0d0d]"
+      }`}
+    >
       <div className="w-full max-w-xs">
         {/* メンバー情報 */}
         <div className="mb-10 text-center">
@@ -111,15 +121,37 @@ export default function MemberPage() {
             <img src={card.logoUrl} alt="ロゴ" className="mx-auto mb-6 h-32 max-w-[60%] object-contain" />
           ) : (
             <div
-              className="mx-auto mb-6 grid h-28 w-28 place-items-center rounded-3xl text-4xl font-semibold text-white"
+              className={`mx-auto mb-6 grid h-28 w-28 place-items-center rounded-3xl text-4xl font-semibold ${
+                lightPage ? "border border-black/10 text-black" : "text-white"
+              }`}
               style={{ backgroundColor: card.mainColor || "#c9a96e" }}
             >
               {(card.company || card.name || "C").slice(0, 1)}
             </div>
           )}
-          <p className="text-xs font-medium tracking-widest text-white/40">{card.company}</p>
-          <h1 className="mt-2 text-2xl font-semibold text-white">{card.name}</h1>
-          {card.title && <p className="mt-1 text-sm text-white/50">{card.title}</p>}
+          <p
+            className={`text-xs font-medium tracking-widest ${
+              lightPage ? "text-black/40" : "text-white/40"
+            }`}
+          >
+            {card.company}
+          </p>
+          <h1
+            className={`mt-2 text-2xl font-semibold ${
+              lightPage ? "text-black" : "text-white"
+            }`}
+          >
+            {card.name}
+          </h1>
+          {card.title && (
+            <p
+              className={`mt-1 text-sm ${
+                lightPage ? "text-black/50" : "text-white/50"
+              }`}
+            >
+              {card.title}
+            </p>
+          )}
         </div>
 
         {/* ボタン */}
@@ -128,7 +160,11 @@ export default function MemberPage() {
             href={`/v/${encodeURIComponent(card.slug || "")}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-white text-base font-semibold text-black transition hover:bg-stone-100"
+            className={`flex h-14 items-center justify-center gap-2.5 rounded-2xl text-base font-semibold transition ${
+              lightPage
+                ? "bg-stone-900 text-white hover:bg-black"
+                : "bg-white text-black hover:bg-stone-100"
+            }`}
           >
             <CreditCard className="h-5 w-5" />
             名刺を見る
@@ -136,7 +172,7 @@ export default function MemberPage() {
           <button
             type="button"
             onClick={() => void handleQrOpen()}
-            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-white/15 text-base font-semibold text-white/80 transition hover:bg-white/8"
+            className={`flex h-14 items-center justify-center gap-2.5 rounded-2xl text-base font-semibold transition ${secondaryButton}`}
           >
             <QrCode className="h-5 w-5" />
             QRを表示する
@@ -144,13 +180,13 @@ export default function MemberPage() {
           <button
             type="button"
             onClick={handleNativeShare}
-            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-white/15 text-base font-semibold text-white/80 transition hover:bg-white/8"
+            className={`flex h-14 items-center justify-center gap-2.5 rounded-2xl text-base font-semibold transition ${secondaryButton}`}
           >
             <Share2 className="h-5 w-5" />
             この名刺を共有
           </button>
 
-          <div className="my-1 h-px bg-white/10" />
+          <div className={`my-1 h-px ${lightPage ? "bg-black/10" : "bg-white/10"}`} />
           <input
             ref={scanInputRef}
             type="file"
@@ -168,14 +204,18 @@ export default function MemberPage() {
           <button
             type="button"
             onClick={() => scanInputRef.current?.click()}
-            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-white/10 text-base font-semibold text-white transition hover:bg-white/15"
+            className={`flex h-14 items-center justify-center gap-2.5 rounded-2xl text-base font-semibold transition ${
+              lightPage
+                ? "bg-black/5 text-black hover:bg-black/10"
+                : "bg-white/10 text-white hover:bg-white/15"
+            }`}
           >
             <ScanLine className="h-5 w-5" />
             名刺を取り込む
           </button>
           <Link
             href="/scanned"
-            className="flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-white/15 text-base font-semibold text-white/80 transition hover:bg-white/8"
+            className={`flex h-14 items-center justify-center gap-2.5 rounded-2xl text-base font-semibold transition ${secondaryButton}`}
           >
             <Images className="h-5 w-5" />
             取り込んだ名刺一覧

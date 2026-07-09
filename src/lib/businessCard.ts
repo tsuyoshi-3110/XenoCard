@@ -39,6 +39,17 @@ export const EMPTY_BUSINESS_CARD: BusinessCard = {
   slug: "",
 };
 
+// 色(6桁hex)が明るいかを輝度で判定する
+export function isLightColor(hex: string, threshold = 0.82): boolean {
+  const match = /^#?([0-9a-f]{6})$/i.exec((hex || "").trim());
+  if (!match) return false;
+  const value = parseInt(match[1], 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > threshold;
+}
+
 function escapeVCardValue(value: string): string {
   return value
     .replace(/\\/g, "\\\\")
